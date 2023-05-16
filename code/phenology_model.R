@@ -1,6 +1,5 @@
-# Read in derived data from Bromecast (still need to figure out how to do this
-# seamlessly from Github -- probably need to wait until the repository is
-# public?). Right now I'll just pull it from my local machine.
+# This code fits the phenology first to flower models to year 1 common garden
+# data
 
 ## Load libraries ####
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
@@ -9,13 +8,13 @@ library(here)
 source(here("supp_code/climate_of_origin.R"))
 ## Read in all Boise data ####
 # Read in derived phenology data
-phen_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_growthphenology_with_harvest.csv")
+phen_Boise <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_growthphenology_with_harvest.csv?token=GHSAT0AAAAAACAWPIN25IM5XMROYGL6QXUKZDDX6XA"))
 # Read in plant ID info
-ids_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_plantID.csv")
+ids_Boise <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_plantID.csv?token=GHSAT0AAAAAACAWPIN2NZX6ATQMWZRHF7DWZDDX7KQ"))
 # Read in garden treatment info
-gardens <- read_csv("~/Git/Bromecast/gardens/rawdata/garden_treatments.csv")
+gardens <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/rawdata/garden_treatments.csv?token=GHSAT0AAAAAACAWPIN2IPEXXUZHZNZ5IQV6ZDDX75Q"))
 # Read in flagging data
-flags_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_flags.csv")
+flags_Boise <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_flags.csv?token=GHSAT0AAAAAACAWPIN24VQIGPEOLS426FQOZDDYAOQ"))
 
 # Merge together datasets
 phen_id_Boise <- merge(phen_Boise, ids_Boise)
@@ -47,11 +46,11 @@ phen_Boise %>%
 ## Read in Sheep Station data ####
 
 # Read in derived phenology data
-phen_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_growthphenology_with_harvest.csv")
+phen_SS <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_growthphenology_with_harvest.csv?token=GHSAT0AAAAAACAWPIN2VXFIJHDW2SRHMI5UZDDYA6Q"))
 # Read in plant ID info
-ids_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_plantID.csv")
+ids_SS <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_plantID.csv?token=GHSAT0AAAAAACAWPIN25DABAIRUE4GB24NIZDDYBJA"))
 # Read in flagging data
-flags_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_flags.csv")
+flags_SS <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_flags.csv?token=GHSAT0AAAAAACAWPIN2JKAGEWJT6MUG7SJOZDDYCDA"))
 
 # Merge together datasets
 phen_id_SS <- merge(phen_SS, ids_SS)
@@ -180,6 +179,7 @@ phen_flower %>%
   labs(size = "proportion",
        y = "julian day")
   
+## Fit ordinal model ####
 
 # Create jday to ordered class data frame
 tibble(jday = sort(unique(phen_flower$jday)),
@@ -269,3 +269,11 @@ pred_data %>%
   scale_x_continuous(breaks = c(108,123,130,138,144,147,151,154,165,182,186,188,192)) +
   facet_wrap(~site) +
   theme(axis.text.x = element_text(size = 8, angle = 45, hjust = 1))
+
+phen_flower %>% 
+  filter(site == "WI") %>% 
+  group_by(plot_unique, gravel, density) %>% 
+  summarize(n = n())
+
+
+
