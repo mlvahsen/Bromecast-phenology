@@ -3,7 +3,7 @@
 
 ## Load libraries ####
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
-library(here)
+library(here); library(readr)
 ## Source code for genotype climate of origin ####
 source(here("supp_code/climate_of_origin.R"))
 ## Read in all Boise data ####
