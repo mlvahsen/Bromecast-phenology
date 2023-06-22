@@ -8,16 +8,20 @@ library(here); library(readr)
 source(here("supp_code/climate_of_origin.R"))
 ## Read in all Boise data ####
 # Read in derived phenology data
-phen_Boise <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_growthphenology_with_harvest.csv?token=GHSAT0AAAAAACAWPIN25IM5XMROYGL6QXUKZDDX6XA"))
+phen_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_growthphenology_by_plantID.csv")
 # Read in plant ID info
-ids_Boise <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_plantID.csv?token=GHSAT0AAAAAACAWPIN2NZX6ATQMWZRHF7DWZDDX7KQ"))
+ids_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_plantID.csv")
 # Read in garden treatment info
-gardens <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/rawdata/garden_treatments.csv?token=GHSAT0AAAAAACAWPIN2IPEXXUZHZNZ5IQV6ZDDX75Q"))
+gardens <- read_csv("~/Git/Bromecast/gardens/rawdata/garden_treatments.csv")
 # Read in flagging data
-flags_Boise <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_flags.csv?token=GHSAT0AAAAAACAWPIN24VQIGPEOLS426FQOZDDYAOQ"))
+flags_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_flags.csv")
 
 # Merge together datasets
 phen_id_Boise <- merge(phen_Boise, ids_Boise)
+# Relabel site
+phen_id_Boise %>% 
+  mutate(site = case_when(substr(plantID, 1, 2) == "BA" ~ "BA",
+                          substr(plantID, 1, 2) == "WI" ~ "WI")) -> phen_id_Boise
 
 # Rename 'garden' column and remove cum_plot column
 gardens %>% 
@@ -31,11 +35,16 @@ phen_id_garden_Boise <- merge(phen_id_Boise, gardens_sub)
 phen_Boise <- merge(phen_id_garden_Boise, flags_Boise)
 phen_Boise <- merge(phen_Boise, genotype_PCclimate)
 
+phen_Boise %>% 
+  group_by(site, block, plot, density, gravel) %>% 
+  summarize(n = n()) %>% 
+  print(n= Inf)
+
 # Set appropriate factors for variables
 phen_Boise %>% 
   mutate(block = as.factor(block),
          plot = as.factor(plot),
-         growout = as.factor(growout),
+         growout = NA,
          density = as.factor(density),
          gravel = as.factor(gravel),
          site = as.factor(site),
@@ -46,11 +55,11 @@ phen_Boise %>%
 ## Read in Sheep Station data ####
 
 # Read in derived phenology data
-phen_SS <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_growthphenology_with_harvest.csv?token=GHSAT0AAAAAACAWPIN2VXFIJHDW2SRHMI5UZDDYA6Q"))
+phen_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_growthphenology_with_harvest.csv")
 # Read in plant ID info
-ids_SS <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_plantID.csv?token=GHSAT0AAAAAACAWPIN25DABAIRUE4GB24NIZDDYBJA"))
+ids_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_plantID.csv")
 # Read in flagging data
-flags_SS <- read_csv(url("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_flags.csv?token=GHSAT0AAAAAACAWPIN2JKAGEWJT6MUG7SJOZDDYCDA"))
+flags_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_flags.csv")
 
 # Merge together datasets
 phen_id_SS <- merge(phen_SS, ids_SS)
@@ -155,30 +164,37 @@ confint(gam_linear, parm = "s(block_unique)") %>%
   theme_bw(base_size = 14) +
   theme(axis.text.x = element_text(size = 8, angle = 45, hjust = 1))
 
-# Show why (I think) block random intercept is getting estimated to be 0
-phen_flower %>% 
-  filter(site == "SS") %>% 
-  group_by(block_unique) %>% 
-  summarize(mean = mean(jday),
-            sd = sd(jday),
-            se = sd/sqrt(n())) -> summary_stats_blockWI
-
-phen_flower %>% 
-  filter(site == "SS") %>% 
-  ggplot(aes(x = block_unique, y = jday)) +
-  geom_count(aes(size = after_stat(prop), group = block_unique)) +
-  scale_size_area(max_size = 10) +
+confint(gam_linear, parm = "s(plot_unique)") %>% 
+  ggplot(aes(x = reorder(plot_unique, est), y = est)) +
+  geom_point() +
+  geom_segment(aes(y = lower, yend = upper, x = plot_unique, xend = plot_unique)) +
+  xlab("genotype") +
+  ylab("estimate") +
+  geom_hline(aes(yintercept = 0), linetype = "dashed") +
   theme_bw(base_size = 14) +
-  xlab("SS blocks") +
-  geom_point(data = summary_stats_blockWI, aes(x = block_unique, y = mean),
-             color = "blue", position = position_nudge(x = 0.2)) +
-  geom_segment(data = summary_stats_blockWI, aes(x = block_unique,
-                                                 xend = block_unique,
-                                                 y = mean - 2*se, yend = mean + 2*se),
-               position = position_nudge(x = 0.2), color = "blue") +
-  labs(size = "proportion",
-       y = "julian day")
-  
+  theme(axis.text.x = element_text(size = 8, angle = 45, hjust = 1))
+
+confint(gam_linear, parm = "s(genotype)") %>% 
+  ggplot(aes(x = reorder(genotype, est), y = est)) +
+  geom_point() +
+  geom_segment(aes(y = lower, yend = upper, x = genotype, xend = genotype)) +
+  xlab("genotype") +
+  ylab("estimate") +
+  geom_hline(aes(yintercept = 0), linetype = "dashed") +
+  theme_bw(base_size = 14) +
+  theme(axis.text.x = element_text(size = 8, angle = 45, hjust = 1))
+
+confint(gam_linear, parm = "s(genotype,site)") %>% 
+  #filter(genotype %in% 1:10) %>% 
+  ggplot(aes(x = genotype, y = est, color = site)) +
+  geom_point() +
+  geom_segment(aes(y = lower, yend = upper, x = genotype, xend = genotype)) +
+  xlab("genotype") +
+  ylab("estimate") +
+  geom_hline(aes(yintercept = 0), linetype = "dashed") +
+  theme_bw(base_size = 14) +
+  theme(axis.text.x = element_text(size = 8, angle = 45, hjust = 1))
+
 ## Fit ordinal model ####
 
 # Create jday to ordered class data frame

@@ -40,10 +40,39 @@ phen_SS %>%
   mutate(plot_unique = as.factor(paste(site, block, plot, sep = "_")),
          block_unique = as.factor(paste(site, block, sep = "_")))-> phen_SS
 
-phen_SS -> phen
 
-# Remove other temporary objects
-rm(list=setdiff(ls(), "phen"))
+## Read in Boise data ####
+# Read in derived phenology data
+phen_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_growthphenology_by_plantID.csv")
+# Read in plant ID info
+ids_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_plantID.csv")
+# Read in flagging data
+flags_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_flags.csv")
+
+# Merge together datasets
+phen_id_Boise <- merge(phen_Boise, ids_Boise)
+
+# Merge together datasets
+phen_id_garden_Boise <- merge(phen_id_Boise, gardens_sub)
+
+# Merge together datasets
+phen_Boise <- merge(phen_id_garden_Boise, flags_Boise)
+phen_Boise <- merge(phen_Boise, genotype_PCclimate)
+
+# Set appropriate factors for variables
+phen_Boise %>% 
+  mutate(block = as.factor(block),
+         plot = as.factor(plot),
+         growout = NA,
+         density = as.factor(density),
+         gravel = as.factor(gravel),
+         site = as.factor(site),
+         genotype = as.factor(genotype)) %>% 
+  mutate(plot_unique = as.factor(paste(site, block, plot, sep = "_")),
+         block_unique = as.factor(paste(site, block, sep = "_")))-> phen_Boise
+
+## Merge datasets together ####
+phen <- rbind(phen_SS %>% dplyr::select(-tillers), phen_Boise)
 
 ## Calculate time to first flower ####
 
@@ -79,7 +108,7 @@ phen_flower %>%
   mutate(genotype = as.factor(genotype))-> phen_flower_sub
 
 # And vice versa for kinship matrix
-keeps <- which(unique(phen_flower$genotype) %in% rownames(kinship93BRTE))
+keeps <- which(rownames(kinship93BRTE) %in% unique(phen_flower_sub$genotype))
 
 kinship93BRTE[keeps, keeps] -> kin
 
@@ -90,33 +119,51 @@ phen_flower %>%
 start <- Sys.time()
 
 gam_linear <- gam(jday ~ density*gravel*pc1 + density*gravel*pc2 +
-                    site*pc1 + site*pc2 +
+                    pc1 + pc2 +
                     # Random intercept for block
                     s(block_unique, bs = 're') + 
                     # Random intercept for plot nested within block
                     s(plot_unique, bs = 're') +
-                    s(genotype, bs = 're') +
-                    s(genotype, density, bs = 're') +
-                    s(genotype, site, bs = 're') +
-                    s(genotype, gravel, bs = "re"), method = "REML", 
-                  data = phen_flower)
+                    s(genotype, bs = 're'),
+                    #s(genotype, density, bs = 're') +
+                    #s(genotype, site, bs = 're') +
+                    #s(genotype, gravel, bs = "re"), method = "REML", 
+                  data = phen_flowerSS)
+
+end <- Sys.time()
+
+phen_flower_kin %>% 
+  filter(site == "SS") -> phen_flowerSS
 
 brms_m1 <- brm(
-  jday ~ 1 + density*gravel + (1 + density || gr(genotype, cov = Amat)) +
+  jday ~ 1 + density + gravel +
+    pc1 + pc2 + (1 + density + gravel || gr(genotype, cov = Amat)) +
+    (1 | block_unique) + (1 | plot_unique),
+  data = phen_flowerBA,
+  data2 = list(Amat = kin),
+  family = gaussian(),
+  chains = 2, cores = 1, iter = 1000
+)
+
+summary(brms_m1)
+
+brms_m2 <- brm(
+  jday ~ 1 + density*gravel +
+    pc1 + pc2 + (1 + density + gravel || genotype) +
     (1 | block_unique) + (1 | plot_unique),
   data = phen_flower_kin,
   data2 = list(Amat = kin),
   family = gaussian(),
-  chains = 3, cores = 1, iter = 1000
+  chains = 1, cores = 1, iter = 1000
 )
 
 # Assess model fit
-plot(brms_m1)
+plot(brms_m2)
 mcmc_plot(brms_m1, type = "acf")
 summary(brms_m1)
 
 # Calculate heritability
-v_animal <- (VarCorr(brms_m1, summary = FALSE)$genotype$sd)^2
+v_animal <- (VarCorr(brms_m1, summary = FALSE)$genotype$sd[,1])^2
 v_r <- (VarCorr(brms_m1, summary = FALSE)$residual$sd)^2
 h.bwt.1 <- as.mcmc(v_animal / (v_animal + v_r))
 summary(h.bwt.1)
