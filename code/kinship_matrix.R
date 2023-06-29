@@ -1,6 +1,7 @@
 ## Load libraries ####
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
 library(here); library(readr); library(brms); library(RcppCNPy)
+
 ## Source code for genotype climate of origin ####
 source(here("supp_code/climate_of_origin.R"))
 
@@ -71,15 +72,47 @@ phen_Boise %>%
   mutate(plot_unique = as.factor(paste(site, block, plot, sep = "_")),
          block_unique = as.factor(paste(site, block, sep = "_")))-> phen_Boise
 
+
+## Read in Cheyenne data ####
+# Read in derived phenology data
+phen_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_growthphenology_by_plantID.csv")
+# Read in plant ID info
+ids_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_plantID.csv")
+# Read in flagging data
+flags_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_flags.csv")
+
+# Merge together datasets
+phen_id_CH <- merge(phen_CH, ids_CH)
+
+# Merge together datasets
+phen_CH <- merge(phen_id_CH, flags_CH)
+phen_CH <- merge(phen_CH, genotype_PCclimate)
+
+# Set appropriate factors for variables
+phen_CH %>% 
+  mutate(block = as.factor(block),
+         plot = as.factor(plot),
+         growout = NA,
+         density = as.factor(case_when(density == "high" ~ "hi",
+                                       density == "low" ~ "lo")),
+         gravel = as.factor(gravel),
+         site = as.factor(site),
+         genotype = as.factor(genotype)) %>% 
+  mutate(plot_unique = as.factor(paste(site, block, plot, sep = "_")),
+         block_unique = as.factor(paste(site, block, sep = "_")))-> phen_CH
+
 ## Merge datasets together ####
-phen <- rbind(phen_SS %>% dplyr::select(-tillers), phen_Boise)
+phen <- rbind(phen_SS %>% dplyr::select(-tillers), phen_Boise, phen_CH)
+
+# Remove all other intermediate data sets
+rm(list=setdiff(ls(), "phen"))
 
 ## Calculate time to first flower ####
 
 # Calculate when the earliest flowering day is for each plant. This procedure
 # removes plants that do not flower of the course of the experiment.
 phen %>%
-  filter(v %in% c("FG", "FP", "FB")) %>%
+  filter(v %in% c("FG", "FP", "FB", "FX")) %>%
   group_by(plantID) %>%
   # Gets minimum day of flowering
   slice(which.min(jday)) -> phen_flower
@@ -90,6 +123,7 @@ phen %>%
 kinshipIDs <- read_csv("~/Git/Bromecast/gardens/rawdata/cg_psuDTF.csv")
 
 kinshipIDs %>% 
+  # Two genotypes are currently absent from the kinship matrix
   filter(source != "Adler09" & source != "Shriver01") %>% 
   arrange(kinshipID)-> genotypes_93
 
@@ -106,6 +140,7 @@ rownames(kinship93BRTE) <- as.factor(genotypes_93$genotype)
 phen_flower %>% 
   filter(genotype %in% genotypes_93$genotype) %>% 
   mutate(genotype = as.factor(genotype))-> phen_flower_sub
+# Right now this only drops 213 plants total
 
 # And vice versa for kinship matrix
 keeps <- which(rownames(kinship93BRTE) %in% unique(phen_flower_sub$genotype))
@@ -115,52 +150,67 @@ kinship93BRTE[keeps, keeps] -> kin
 phen_flower %>% 
   filter(genotype %in% rownames(kin)) -> phen_flower_kin
 
+
 ## Fit linear model ####
 start <- Sys.time()
 
 gam_linear <- gam(jday ~ density*gravel*pc1 + density*gravel*pc2 +
-                    pc1 + pc2 +
+                    site*pc1 + site*pc2 +
                     # Random intercept for block
-                    s(block_unique, bs = 're') + 
+                    s(block_unique, bs = 're') +
                     # Random intercept for plot nested within block
                     s(plot_unique, bs = 're') +
-                    s(genotype, bs = 're'),
-                    #s(genotype, density, bs = 're') +
-                    #s(genotype, site, bs = 're') +
-                    #s(genotype, gravel, bs = "re"), method = "REML", 
-                  data = phen_flowerSS)
+                    s(genotype, bs = 're') +
+                    s(genotype, density, bs = 're') +
+                    s(genotype, site, bs = 're') +
+                    s(genotype, gravel, bs = "re"), method = "REML",
+                  data = phen_flower)
 
 end <- Sys.time()
 
-phen_flower_kin %>% 
-  filter(site == "SS") -> phen_flowerSS
+library(lmerTest)
+
+gam_lmer <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 +
+                         site*pc1 + site*pc2 +
+                         (1|block_unique) + (1|plot_unique) + (density + site + gravel | genotype),
+                       data = phen_flower)
+
+plot_model(gam_lmer, type = "emm", terms = c("pc2"))
+
+# Fit Bayesian linear model 
+start <- Sys.time()
 
 brms_m1 <- brm(
-  jday ~ 1 + density + gravel +
-    pc1 + pc2 + (1 + density + gravel || gr(genotype, cov = Amat)) +
-    (1 | block_unique) + (1 | plot_unique),
-  data = phen_flowerBA,
-  data2 = list(Amat = kin),
-  family = gaussian(),
-  chains = 2, cores = 1, iter = 1000
-)
-
-summary(brms_m1)
-
-brms_m2 <- brm(
-  jday ~ 1 + density*gravel +
-    pc1 + pc2 + (1 + density + gravel || genotype) +
+  jday ~ 1 + density * gravel * site +
+    site * pc1 + site * pc2 + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
     (1 | block_unique) + (1 | plot_unique),
   data = phen_flower_kin,
   data2 = list(Amat = kin),
   family = gaussian(),
-  chains = 1, cores = 1, iter = 1000
+  chains = 3, cores = 1, iter = 5000
 )
 
-# Assess model fit
-plot(brms_m2)
-mcmc_plot(brms_m1, type = "acf")
+end <- Sys.time()
+
+# Time difference of 1.263403 hours
+
+# Save this first run as a model object
+saveRDS(brms_m1, "supp_data/brms_flower.rds")
+
 summary(brms_m1)
+
+# Assess model fit
+plot(brms_m1) # Looks pretty good!
+
+# Calculate emmeans
+emmeans::emmeans(brms_m1, ~density)
+
+# Plot model
+theme_set(theme_bw(base_size = 14))
+sjPlot::plot_model(brms_m1, type = "emm", terms = c("density", "gravel", "site"))
+sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc1", "site"))
+sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc2", "site"))
+sjPlot::plot_model(brms_m1, type = "slope")
 
 # Calculate heritability
 v_animal <- (VarCorr(brms_m1, summary = FALSE)$genotype$sd[,1])^2
