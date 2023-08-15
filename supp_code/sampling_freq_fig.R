@@ -1,4 +1,4 @@
-# This file reads in and compiles the data needed for the flower timing analysis
+# Create a plot to depict when plants where surveyed for each site
 
 ## Load libraries ####
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
@@ -105,51 +105,55 @@ phen_CH %>%
 
 ## Merge datasets together ####
 phen <- rbind(phen_SS %>% dplyr::select(-tillers), phen_Boise, phen_CH)
-## Create plant level dataset for flowering time ####
+
 phen %>%
   filter(v %in% c("FG", "FP", "FB", "FX")) %>%
   group_by(plantID) %>%
   # Gets minimum day of flowering
   slice(which.min(jday)) -> phen_flower
 
-# Update herbivory data at the level of the plant
+phen_flower %>% 
+  group_by(site) %>% 
+  slice(which.min(jday)) %>% 
+  select(site, jday) -> first_flower_site
+
+phen %>% filter(site == "SS" & jday > 50) %>% pull(jday) %>% range(na.rm = T)
+phen %>% filter(site == "WI" & jday > 50) %>% pull(jday) %>% range(na.rm = T)
+phen %>% filter(site == "BA" & jday > 50) %>% pull(jday) %>% range(na.rm = T)
+phen %>% filter(site == "CH" & jday > 50) %>% pull(jday) %>% range(na.rm = T)
+
+colors <- c("#88CCEE", "#AA4499", "#DDCC77", "#44AA99")
+
 phen %>% 
-  filter(herbivory == "Y") %>% 
-  pull(plantID) %>% unique() -> herbivory_plants 
+  group_by(jday, site) %>% 
+  summarize(n = n()) %>% 
+  filter(jday > 50) %>% 
+  mutate(y = case_when(site == "SS" ~ 3,
+                       site == "BA" ~ 4,
+                       site == "WI" ~ 1,
+                       site == "CH"  ~ 2)) %>% 
+  ggplot(aes(x = jday, color = site, y = y)) +
+  geom_point(size = 4, alpha = 0.5) +
+  scale_color_manual(values = colors) + 
+  scale_fill_manual(values = colors) +
+  ylab("") +
+  geom_segment(aes(x = 96, xend = 189, y = 4, yend = 4), color = colors[2]) +
+  geom_segment(aes(x = 87, xend = 198, y = 3, yend = 3), color = colors[1]) +
+  geom_segment(aes(x = 73, xend = 208, y = 2, yend = 2), color = colors[4]) +
+  geom_segment(aes(x = 55, xend = 154, y = 1, yend = 1), color = colors[3]) +
+  geom_point(data = first_flower_site, aes(x = jday, y = c(3,4,1,2), fill = site),
+             size = 4, shape = 21, color = "black", stroke = 1) + 
+  ylim(0.5,4.5) +
+  annotate("text", x = 142.5, y = 4.4, label = "Baltzor (BA)", color = colors[2], size = 6) +
+  annotate("text", x = 142.5, y = 3.4, label = "Sheep Station (SS)", color = colors[1], size = 6) +
+  annotate("text", x = 140.5, y = 2.4, label = "Cheyenne (CH)", color = colors[4], size = 6) +
+  annotate("text", x = 104.5, y = 1.4, label = "Wildcat (WI)", color = colors[3], size = 6) +
+  theme_classic(base_size = 16) +
+  theme(legend.position = "none",
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank()) -> sampling_timeline
 
-phen_flower %>% 
-  mutate(herbivory = ifelse(plantID %in% herbivory_plants, "Y", "N")) -> phen_flower
-
-## Read in kinship data and subset flowering data to match ####
-## Kinship stuff ####
-
-# Read in data that matches kinship matrix position and genotype ID
-kinshipIDs <- read_csv("~/Git/Bromecast/gardens/rawdata/cg_psuDTF.csv")
-
-kinshipIDs %>% 
-  # Two genotypes are currently absent from the kinship matrix
-  filter(source != "Adler09" & source != "Shriver01") %>% 
-  arrange(kinshipID)-> genotypes_93
-
-# Read in kinship matrix
-setwd("~/Git/Bromecast/gardens/rawdata/")
-kinship93BRTE <- npyLoad("93BRTEcg.kinship.npy")
-setwd("~/Git/Bromecast-phenology/")
-
-# Put genotype numbers on rows and columns
-colnames(kinship93BRTE) <- as.factor(genotypes_93$genotype)
-rownames(kinship93BRTE) <- as.factor(genotypes_93$genotype)
-
-# Subset phen data for only genotypes that we have kinship data for
-phen_flower %>% 
-  filter(genotype %in% genotypes_93$genotype) %>% 
-  mutate(genotype = as.factor(genotype))-> phen_flower_kin
-# Right now this only drops 213 plants total
-
-# And vice versa for kinship matrix
-keeps <- which(rownames(kinship93BRTE) %in% unique(phen_flower_kin$genotype))
-
-kinship93BRTE[keeps, keeps] -> kin
-
-# Remove all other intermediate data sets
-rm(list=setdiff(ls(), c("phen_flower_kin", "kin")))
+png("figs/prelim_sampling_freq.png", height = 4, width = 6.6, units = "in", res = 300)
+sampling_timeline
+dev.off()

@@ -2,12 +2,36 @@
 
 # Load libraries
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
-library(here); library(readr); library(brms); library(RcppCNPy)
+library(here); library(readr); library(brms); library(RcppCNPy); library(lme4);
+library(patchwork)
 
 # Source in compiled data for the model
 source(here("supp_code", "compile_data.R"))
 
-# Fit Bayesian linear model 
+# Fit linear model without herbivory plants and with herbivory plants
+phen_flower_kin %>% 
+  filter(herbivory == "Y") %>% 
+  group_by(site, density) %>% 
+  summarize(n = n()) # Most of these are from Sheep Station
+
+# Fit linear model with all data
+mod_all <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
+                  (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin)
+
+car::Anova(mod_all)
+
+# Drop all herbivory instances
+phen_flower_kin %>% 
+  filter(herbivory != "Y") -> phen_flower_kin_noherb
+
+# Refit model
+mod_noherb <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
+                     (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin_noherb)
+
+# Seems like the results are basically the same so fit the model with all of the
+# data for now
+
+# Fit Bayesian linear model
 start <- Sys.time()
 
 brms_m1 <- brm(
@@ -31,7 +55,7 @@ summary(brms_m1)
 theme_set(theme_bw(base_size = 16))
 
 png("figs/prelim_int.png", height = 4, width = 8, res = 300, units = "in")
-sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc2","density", "gravel")) +
+sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc1","density", "gravel")) +
   scale_color_manual(values = c("orange", "dodgerblue")) + ggtitle("")
 dev.off()
 
@@ -39,112 +63,102 @@ png("figs/prelim_site.png", height = 5, width = 5.5, res = 300, units = "in")
 sjPlot::plot_model(brms_m1, type = "emm", terms = c("gravel","density","site")) +
   scale_color_manual(values = c("orange", "dodgerblue")) + ggtitle("")
 dev.off()
-  
 
-mod <- lmer(jday ~ density * gravel * pc1 + density * gravel * pc2 + site * pc1 + site * pc2 +
-              (1|block_unique) + (1|plot_unique) + (1+density+gravel+site|genotype), data = phen_flower_kin)
+# Create genotype graph
 
-anova(mod)
-sjPlot::plot_model(mod, type = "pred", pred.type = "re", terms = c("site", "genotype"), se = F) +
-  geom_line() + theme(legend.position = "none")
+# Create new data data frame for predictions from model
+expand_grid(density = c("lo", "hi"),
+            gravel = c("black", "white"),
+            plot_unique = unique(phen_flower_kin$plot_unique),
+            genotype = factor(unique(phen_flower_kin$genotype))) %>% 
+  mutate(block_unique = paste(str_split_i(plot_unique, "_", i = 1),
+                              str_split_i(plot_unique, "_", i = 2), sep = "_"),
+         site = str_split_i(plot_unique, "_", i = 1)) -> new_data
 
-ranef(mod)
+# Match up pc1 and pc2 values for each genotype from true data
+phen_flower_kin %>% 
+  ungroup() %>% 
+  select(genotype, pc1, pc2) %>% 
+  distinct() -> genotype_pcs
 
+merge(new_data, genotype_pcs) -> new_data_pcs
 
-emmeans::emmeans(mod, ~site)
+predict(brms_m1, new_data_pcs) -> preds
 
-mod2 <- lmer(jday ~ density * gravel + site * pc1 + site * pc2 +
-               (1|block_unique) + (1|plot_unique) + (1|genotype), data = phen_flower_kin)
+# Bind predictions together with new data frame
+cbind(new_data_pcs, jday_pred = preds[,1]) -> predicted_means
 
-anova(mod, mod2)
+predicted_means %>% 
+  group_by(genotype, density) %>% 
+  summarize(jday_mean = mean(jday_pred)) %>% 
+  ggplot(aes(x = density, y = jday_mean, group = genotype)) +
+  geom_line(alpha = 0.5) + geom_point(size = 3, alpha = 0.5) +
+  labs(y = "jday")-> gxe_density
 
-plot_model(mod, type = "pred", pred.type = "re", terms = c("density", "genotype"), se = F) +
-  geom_line()
+predicted_means %>% 
+  group_by(genotype, gravel) %>% 
+  summarize(jday_mean = mean(jday_pred)) %>% 
+  ggplot(aes(x = gravel, y = jday_mean, group = genotype)) +
+  geom_line(alpha = 0.5) + geom_point(size = 3, alpha = 0.5) +
+  labs(y = "jday")-> gxe_gravel
 
-end <- Sys.time()
+predicted_means %>% 
+  group_by(genotype, site) %>% 
+  filter(site %in% c("CH", "SS", "BA")) %>% 
+  summarize(jday_mean = mean(jday_pred)) %>% 
+  ggplot(aes(x = site, y = jday_mean, group = genotype)) +
+  geom_line(alpha = 0.5) + geom_point(size = 3, alpha = 0.5) +
+  labs(y = "jday") -> gxe_site
 
-# Time difference of 1.263403 hours
+gxe_density + gxe_gravel + gxe_site 
+
+predicted_means %>% 
+  group_by(genotype, pc1) %>% 
+  summarize(jday_mean = mean(jday_pred)) %>% 
+  ggplot(aes(x = reorder(genotype, jday_mean), y = jday_mean, fill = pc1)) +
+  geom_point(aes(fill = pc1), shape = 21, size = 4) +
+  scale_fill_distiller(palette = "PiYG") +
+  coord_flip() +
+  theme(axis.text.y = element_blank()) +
+  ylab("jday") + xlab("genotype") -> genotype_pc1
+
+predicted_means %>% 
+  group_by(genotype, pc2) %>% 
+  summarize(jday_mean = mean(jday_pred)) %>% 
+  ggplot(aes(x = reorder(genotype, jday_mean), y = jday_mean, fill = pc2)) +
+  geom_point(aes(fill = pc2), shape = 21, size = 4) +
+  scale_fill_distiller(palette = "PuOr") +
+  coord_flip() +
+  theme(axis.text.y = element_blank()) +
+  ylab("jday") + xlab("genotype") -> genotype_pc2
+
+design <- c(
+  area(1, 1, 6, 1),
+  area(1, 2, 6, 2),
+  area(1, 3, 2, 4),
+  area(3, 3, 4, 4),
+  area(5, 3, 6, 4)
+)
+
+plot(design)
+
+png("figs/prelim_gxe.png", height = 9, width = 11, res = 300, units = "in")
+genotype_pc1 + genotype_pc2 + gxe_density + gxe_gravel + gxe_site +
+  plot_layout(design = design, guides = "collect") +
+  plot_annotation(tag_levels = "a") & theme(legend.position = "left")
+dev.off()
+
 
 # Save this first run as a model object
 # saveRDS(brms_m1, "supp_data/brms_flower.rds")
-brms_m1 <- readRDS("supp_data/brms_flower.rds")
+library(bayesplot)
 
+ppreds <- posterior_predict(brms_m1, draws = 500)
+ppc_dens_overlay(phen_flower_kin$jday, ppreds[1:50, ])
+ppc_stat(phen_flower_kin$jday, ppreds, stat = "mean")
+ppc_stat(phen_flower_kin$jday, ppreds, stat = "sd")
 
-
-newdata <- expand_grid(gravel = c("black", "white"),
-                       density = c("hi", "lo"),
-                       genotype = unique(phen_flower_kin$genotype),
-                       site = unique(phen_flower_kin$site),
-                       pc1 = mean(phen_flower_kin$pc1),
-                       pc2 = mean(phen_flower_kin$pc2),
-                       block_unique = "SS_1",
-                       plot_unique = "SS_4_2")
-
-predict(mod, newdata) -> preds
-
-newdata %>% 
-  group_by(density, genotype) %>% 
-  summarize(mean = mean(preds)) %>% 
-  ggplot(aes(x = density, y = mean, group = genotype)) +
-  geom_line()
-
-newdata$preds <- preds
-
-epred_draws(brms_m1, newdata = newdata, re_formula = NULL, allow_new_levels = T) %>% 
-  group_by(density, genotype) %>% 
-  summarize(mean = mean(.epred)) %>% 
-  spread(key = density, value = mean) %>% 
-  mutate(diff = hi - lo) %>% 
-  arrange(diff)
-  
-
-  
-
-  
-  ggplot(all_regions_autonomy_dist %>% filter(genotype %in% 1:10), 
-         aes(x = .epred, y = genotype, 
-             fill = site)) +
-    stat_halfeye() +
-    labs(x = "Predicted media index", y = NULL,
-         fill = "Opposition parties allowed",
-         subtitle = "Posterior predictions") +
-    theme(legend.position = "bottom")
-
-summary(brms_m1)
-
-# Assess model fit
-plot(brms_m1) # Looks pretty good!
-
-# Calculate emmeans
-emmeans::emmeans(brms_m1, ~density)
-
-# Plot model
-theme_set(theme_bw(base_size = 14))
-sjPlot::plot_model(brms_m1, type = "emm", terms = c("density", "gravel", "site"))
-sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc1", "site"))
-sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc2", "site"))
-
-ranef(brms_m1)
-
-plot_model(brms_m1, type = "pred", 
-           terms = c("density", "r_genotype [1:3]"), 
-           pred.type = "re")
-
-fitted <- fitted(brms_m1)
-post_pred <- posterior_predict(brms_m1)
-lower <- apply(post_pred, quantile, probs = c(0.025), MARGIN = 2)
-upper <- apply(post_pred, quantile, probs = c(0.975), MARGIN = 2)
-
-phen_flower_kin %>% 
-  bind_cols(as_tibble(fitted))-> phen_fitted 
-  
-
-#group_by(genotype, density) %>% 
-  #summarize(mean = mean(Estimate)) %>% 
-phen_fitted %>% 
-  ggplot(aes(x = jday, y = Estimate)) + geom_point() +
-  geom_linerange(aes(ymin = lower, ymax = upper)) +
-  geom_abline(aes(intercept = 0, slope = 1))
+# Make a plot of predicted and observed for model
 
 give_me_R2 <- function(preds,actual){
   rss <- sum(( preds - actual ) ^ 2)  ## residual sum of squares
@@ -153,18 +167,19 @@ give_me_R2 <- function(preds,actual){
   return(rsq)
 }
 
-random_persons <- sample(unique(phen_flower_kin$genotype), size = 20)
-conditional_effects(brms_m1, type = "pred", effects = "density", 
-                    re_formula = NULL, 
-                    conditions = tibble(genotype = c("64", "48"))
-)
+r2 <- give_me_R2(colMeans(ppreds), phen_flower_kin$jday)
 
-brms_m1 %>% 
-  emmeans(~density+genotype, re_formula = ~(1|genotype))
+tibble(predicted = colMeans(ppreds),
+       observed = phen_flower_kin$jday) %>% 
+  ggplot(aes(x = predicted, y = observed)) +
+  geom_point(size = 3, alpha = 0.5) +
+  geom_abline(aes(intercept = 0, slope = 1), linewidth = 2, color = "dodgerblue") +
+  ylim(105, 210) + xlim(105, 210) +
+  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 117, y = 210, size = 7) -> pred_obs
 
-give_me_R2(phen_fitted$Estimate, phen_fitted$jday)
-
-summary(brms_m1)
+png("figs/prelim_modelperform.png", height = 5.1, width = 5.75, res = 300, units = "in")
+pred_obs
+dev.off()
 
 # Calculate heritability
 v_animal <- (VarCorr(brms_m1, summary = FALSE)$genotype$sd[,1])^2
