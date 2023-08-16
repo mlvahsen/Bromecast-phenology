@@ -3,11 +3,12 @@
 # Load libraries
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
 library(here); library(readr); library(brms); library(RcppCNPy); library(lme4);
-library(patchwork)
+library(patchwork); library(bayesplot)
 
 # Source in compiled data for the model
 source(here("supp_code", "compile_data.R"))
 
+## Check effect of herbivorized plants on analysis ####
 # Fit linear model without herbivory plants and with herbivory plants
 phen_flower_kin %>% 
   filter(herbivory == "Y") %>% 
@@ -31,6 +32,7 @@ mod_noherb <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + s
 # Seems like the results are basically the same so fit the model with all of the
 # data for now
 
+## Fit Bayesian model ####
 # Fit Bayesian linear model
 start <- Sys.time()
 
@@ -50,6 +52,39 @@ end - start
 
 summary(brms_m1)
 
+## Create graphics - Model checking ####
+
+# Generate posterior predictive distribution
+ppreds <- posterior_predict(brms_m1, draws = 500)
+# Check against distribution of data, predicted mean, and predicted SD
+ppc_dens_overlay(phen_flower_kin$jday, ppreds[1:50, ])
+ppc_stat(phen_flower_kin$jday, ppreds, stat = "mean")
+ppc_stat(phen_flower_kin$jday, ppreds, stat = "sd")
+
+# Make a plot of predicted and observed for model
+give_me_R2 <- function(preds,actual){
+  rss <- sum(( preds - actual ) ^ 2)  ## residual sum of squares
+  tss <- sum((actual - mean(actual)) ^ 2)  ## total sum of squares
+  rsq <- 1 - rss/tss
+  return(rsq)
+}
+
+r2 <- give_me_R2(colMeans(ppreds), phen_flower_kin$jday)
+
+tibble(predicted = colMeans(ppreds),
+       observed = phen_flower_kin$jday) %>% 
+  ggplot(aes(x = predicted, y = observed)) +
+  geom_point(size = 3, alpha = 0.5) +
+  geom_abline(aes(intercept = 0, slope = 1), linewidth = 2, color = "dodgerblue") +
+  ylim(105, 210) + xlim(105, 210) +
+  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 117, y = 210, size = 7) -> pred_obs
+
+png("figs/prelim_modelperform.png", height = 5.1, width = 5.75, res = 300, units = "in")
+pred_obs
+dev.off()
+
+
+## Create graphics - Results ####
 # Preliminary results graphs
 
 theme_set(theme_bw(base_size = 16))
@@ -148,40 +183,10 @@ genotype_pc1 + genotype_pc2 + gxe_density + gxe_gravel + gxe_site +
   plot_annotation(tag_levels = "a") & theme(legend.position = "left")
 dev.off()
 
+## Calculations for in-text ####
 
-# Save this first run as a model object
-# saveRDS(brms_m1, "supp_data/brms_flower.rds")
-library(bayesplot)
-
-ppreds <- posterior_predict(brms_m1, draws = 500)
-ppc_dens_overlay(phen_flower_kin$jday, ppreds[1:50, ])
-ppc_stat(phen_flower_kin$jday, ppreds, stat = "mean")
-ppc_stat(phen_flower_kin$jday, ppreds, stat = "sd")
-
-# Make a plot of predicted and observed for model
-
-give_me_R2 <- function(preds,actual){
-  rss <- sum(( preds - actual ) ^ 2)  ## residual sum of squares
-  tss <- sum((actual - mean(actual)) ^ 2)  ## total sum of squares
-  rsq <- 1 - rss/tss
-  return(rsq)
-}
-
-r2 <- give_me_R2(colMeans(ppreds), phen_flower_kin$jday)
-
-tibble(predicted = colMeans(ppreds),
-       observed = phen_flower_kin$jday) %>% 
-  ggplot(aes(x = predicted, y = observed)) +
-  geom_point(size = 3, alpha = 0.5) +
-  geom_abline(aes(intercept = 0, slope = 1), linewidth = 2, color = "dodgerblue") +
-  ylim(105, 210) + xlim(105, 210) +
-  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 117, y = 210, size = 7) -> pred_obs
-
-png("figs/prelim_modelperform.png", height = 5.1, width = 5.75, res = 300, units = "in")
-pred_obs
-dev.off()
-
-# Calculate heritability
+# Calculate heritability -- still need to check how to do this when including
+# random slopes
 v_animal <- (VarCorr(brms_m1, summary = FALSE)$genotype$sd[,1])^2
 v_r <- (VarCorr(brms_m1, summary = FALSE)$residual$sd)^2
 h.bwt.1 <- as.mcmc(v_animal / (v_animal + v_r))
