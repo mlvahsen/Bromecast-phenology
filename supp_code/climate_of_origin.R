@@ -9,7 +9,7 @@ library(geosphere); library(usmap);
 library(patchwork)
 
 # Read in bioclimatic data for genotypes (and common garden locations)
-bioclim <- read_csv("~/Git/Bromecast/gardens/deriveddata/BioclimateOfOrigin_AllGenotypes.csv")
+bioclim <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/BioclimateOfOrigin_AllGenotypes.csv")
 
 ## Run PCA ####
 
