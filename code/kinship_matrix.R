@@ -3,7 +3,7 @@
 # Load libraries
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
 library(here); library(readr); library(brms); library(RcppCNPy); library(lme4);
-library(patchwork); library(bayesplot)
+library(patchwork); library(bayesplot); library(usmap)
 
 # Source in compiled data for the model
 source(here("supp_code", "compile_data.R"))
@@ -19,7 +19,7 @@ phen_flower_kin %>%
 mod_all <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
                   (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin)
 
-car::Anova(mod_all)
+emmeans::emmeans(mod_all, ~site)
 
 # Drop all herbivory instances
 phen_flower_kin %>% 
@@ -181,6 +181,65 @@ png("figs/prelim_gxe.png", height = 9, width = 11, res = 300, units = "in")
 genotype_pc1 + genotype_pc2 + gxe_density + gxe_gravel + gxe_site +
   plot_layout(design = design, guides = "collect") +
   plot_annotation(tag_levels = "a") & theme(legend.position = "left")
+dev.off()
+
+## Posthoc calculations of long- and short-term climate effects ####
+
+# Get predicted mean jday for each cg site
+predicted_means %>% 
+  group_by(site) %>% 
+  summarize(mean_jday = mean(jday_pred)) -> site_means
+
+# Get predicted mean jday for each genotype
+predicted_means %>% 
+  group_by(genotype) %>% 
+  summarize(mean_jday = mean(jday_pred)) %>% 
+  filter(mean_jday == max(mean_jday) | mean_jday == min(mean_jday)) -> genotype_max_means
+
+# Source in air temperature data
+source("supp_code/prism_wrangle.R")
+
+# Get temperature means for each common garden site
+site_temp %>% 
+  group_by(site_code) %>% 
+  summarize(mean = mean(tmean)) -> site_temp_means
+
+# Get temperature means for each collection site
+collect_temp %>% 
+  group_by(site_code) %>% 
+  group_by(site_code) %>% 
+  summarize(mean = mean(tmean)) %>% 
+  filter(mean == max(mean) | mean == min(mean))-> collect_temp_means
+
+# Bind together jday and temp data sets
+site_ests <- merge(site_means %>% dplyr::select(site_code = site, mean_jday), site_temp_means)
+collect_ests <- cbind(genotype_max_means, collect_temp_means) %>% dplyr::select(names(site_ests))
+
+# Calculate relative phenological difference between CG sites and across
+# collection sites
+tibble(jday_diff = c(site_ests$mean_jday[1] - site_ests$mean_jday[4],
+                     site_ests$mean_jday[2] - site_ests$mean_jday[4],
+                     site_ests$mean_jday[3] - site_ests$mean_jday[4],
+                     collect_ests$mean_jday[1] - collect_ests$mean_jday[2]),
+       temp_diff = c(site_ests$mean[4] - site_ests$mean[1],
+                     site_ests$mean[4] - site_ests$mean[2],
+                     site_ests$mean[4] - site_ests$mean[3],
+                     collect_ests$mean[2] - collect_ests$mean[1]),
+       comp = c("short (BA vs WI)", "short (CH vs WI)", "short (SS vs WI)", "long (genotype source)")) %>% 
+  mutate(rel_shift = jday_diff / temp_diff) -> rel_phen_diffs 
+  
+# Create relative phenological difference plot
+rel_phen_diffs %>% 
+  ggplot(aes(x =comp, y = rel_shift )) +
+  geom_point(size = 8) + 
+  geom_segment( aes(x=comp, xend=comp, y=0, yend=rel_shift), linewidth = 1.5) +
+  xlab("") + ylab(expression(atop(paste("relative phenological shift "), paste("(", Delta," jday / ", Delta," mean temp)")))) +
+  theme_bw(base_size = 18) +
+  scale_x_discrete(labels = c("long \n (genotype source)", "short \n (BA vs WI)", "short \n (CH vs WI)", "short \n (SS vs WI)")) +
+  coord_flip() -> rel_phen_plot
+
+png("figs/prelim_relphenshift.png", height = 6.2, width = 7.3, res = 300, units = "in")
+rel_phen_plot
 dev.off()
 
 ## Calculations for in-text ####
