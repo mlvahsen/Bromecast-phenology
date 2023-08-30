@@ -6,7 +6,7 @@
 # Load libraries
 library(tidyverse); library(here);
 library(geosphere); library(usmap);
-library(patchwork)
+library(patchwork); library(ggnewscale)
 
 # Read in bioclimatic data for genotypes (and common garden locations)
 bioclim <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/BioclimateOfOrigin_AllGenotypes.csv")
@@ -69,7 +69,7 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
   geom_point(data = cg_pc, aes(x = lon, y = lat, group = NA, shape = site_code),
              size = 2, color = "dodgerblue", fill = "black", stroke = 1) +
   theme_classic(base_size = 14) +
-  scale_fill_distiller(palette = "PiYG") +
+  scale_fill_distiller(palette = "PiYG", limits = c(-6.8,6.8)) +
   labs(fill = "PC 1",
        x = "longitude",
        y = "latitude",
@@ -88,7 +88,7 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
   geom_point(data = cg_pc, aes(x = lon, y = lat, group = NA, shape = site_code),
              size = 2, color = "dodgerblue", fill = "black", stroke = 1) +
   theme_classic(base_size = 14) +
-  scale_fill_distiller(palette = "PuOr") +
+  scale_fill_distiller(palette = "PuOr", limits = c(-4.75, 4.15)) +
   labs(fill = "PC 2",
        x = "longitude",
        y = "latitude",
@@ -96,8 +96,28 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
   scale_shape_manual(values = 22:25) +
   ggtitle("(c) PC 2") -> pc2
 
+# Plot of common garden sites
+cg_pc %>% 
+  ggplot(aes(x = lon, y = elevation, fill = PC1, shape = site_code)) + 
+  geom_point(size = 15) + 
+  scale_fill_distiller(palette = "PiYG", limits = c(-6.8,6.8)) +
+  guides(fill = "none") +
+  new_scale_fill() +
+  geom_point(aes(fill = PC2, shape = site_code), size = 6) + 
+  scale_fill_distiller(palette = "PuOr", limits = c(-4.75,4.15)) +
+  ylim(600, 2100) + xlim(-120, -102) +
+  scale_shape_manual(values = 22:25) +
+  ylab("elevation (m)") +
+  xlab("longitude") +
+  guides(shape = "none", fill = "none") +
+  annotate(geom = "text", x = -117, y = 980, label = "Wildcat (WI)", size = 5) +
+  annotate(geom = "text", x = -117, y = 1430, label = "Baltzor (BA)", size = 5) +
+  annotate(geom = "text", x = -112, y = 1870, label = "Sheep Station (SS)", size = 5) +
+  annotate(geom = "text", x = -105, y = 2090, label = "Cheyenne (CH)", size = 5) +
+  ggtitle("(d) common gardens")-> cg_pc_plot
+
 png(here("figs/FigSXX_ClimateOrigin.png"), height = 6, width = 10, res = 300, units = "in")
-elevation + pc1 + pc2 + plot_layout(guides = "collect") & theme(legend.direction = "vertical",
+elevation + pc1 + pc2 +cg_pc_plot + plot_layout(guides = "collect", nrow = 2) & theme(legend.direction = "vertical",
                                                                 legend.box = "horizontal", legend.position = "bottom")
 
 dev.off()
