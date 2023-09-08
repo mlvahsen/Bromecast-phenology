@@ -54,6 +54,8 @@ summary(brms_m1)
 
 ## Create graphics - Model checking ####
 
+# brms_m1 <- read_rds("~/Downloads/brms_output.rds")
+
 # Generate posterior predictive distribution
 ppreds <- posterior_predict(brms_m1, draws = 500)
 # Check against distribution of data, predicted mean, and predicted SD
@@ -144,6 +146,38 @@ predicted_means %>%
   ggplot(aes(x = site, y = jday_mean, group = genotype)) +
   geom_line(alpha = 0.5) + geom_point(size = 3, alpha = 0.5) +
   labs(y = "jday") -> gxe_site
+
+predicted_means %>% 
+  group_by(genotype, site) %>% 
+  filter(site == "WI") %>% 
+  summarize(jday_mean = mean(jday_pred)) %>% 
+  arrange(jday_mean) %>%  
+  ungroup() -> test_dat 
+  
+
+test_dat %>% 
+  ggplot(aes(x = 1, y = jday_mean, color = jday_mean)) +
+  geom_point(size = 2) +
+  scale_color_distiller(palette = "Spectral") -> plot
+
+layer_data(plot) %>% 
+  mutate(genotype = test_dat$genotype) -> color_info
+
+predicted_means %>% 
+  group_by(genotype, site) %>% 
+  filter(site == "BA") %>% 
+  summarize(jday_mean = mean(jday_pred)) %>% 
+  ungroup() %>% 
+  merge(color_info %>% select(genotype, colour)) %>% 
+  mutate(color_id = factor(1:92)) -> test_dat2 
+  
+
+test_dat2 %>% 
+  ggplot(aes(x = 1, y = jday_mean, color = color_id)) +
+  geom_point() +
+  scale_color_manual(values = rainbow(92)) +
+  theme(legend.position = "none")
+  
 
 gxe_density + gxe_gravel + gxe_site 
 
