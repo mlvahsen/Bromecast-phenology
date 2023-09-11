@@ -8,30 +8,30 @@ library(patchwork); library(bayesplot); library(usmap)
 # Source in compiled data for the model
 source(here("supp_code", "compile_data.R"))
 
-## Check effect of herbivorized plants on analysis ####
-# Fit linear model without herbivory plants and with herbivory plants
-phen_flower_kin %>% 
-  filter(herbivory == "Y") %>% 
-  group_by(site, density) %>% 
-  summarize(n = n()) # Most of these are from Sheep Station
-
-# Fit linear model with all data
-mod_all <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
-                  (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin)
-
-emmeans::emmeans(mod_all, ~site)
-
-# Drop all herbivory instances
-phen_flower_kin %>% 
-  filter(herbivory != "Y") -> phen_flower_kin_noherb
-
-# Refit model
-mod_noherb <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
-                     (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin_noherb)
-
-# Seems like the results are basically the same so fit the model with all of the
-# data for now
-
+# ## Check effect of herbivorized plants on analysis ####
+# # Fit linear model without herbivory plants and with herbivory plants
+# phen_flower_kin %>% 
+#   filter(herbivory == "Y") %>% 
+#   group_by(site, density) %>% 
+#   summarize(n = n()) # Most of these are from Sheep Station
+# 
+# # Fit linear model with all data
+# mod_all <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
+#                   (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin)
+# 
+# emmeans::emmeans(mod_all, ~site)
+# 
+# # Drop all herbivory instances
+# phen_flower_kin %>% 
+#   filter(herbivory != "Y") -> phen_flower_kin_noherb
+# 
+# # Refit model
+# mod_noherb <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
+#                      (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin_noherb)
+# 
+# # Seems like the results are basically the same so fit the model with all of the
+# # data for now
+# 
 ## Fit Bayesian model ####
 # Fit Bayesian linear model
 start <- Sys.time()
@@ -54,7 +54,7 @@ summary(brms_m1)
 
 ## Create graphics - Model checking ####
 
-# brms_m1 <- read_rds("~/Downloads/brms_output.rds")
+brms_m1 <- read_rds("~/Downloads/brms_output.rds")
 
 # Generate posterior predictive distribution
 ppreds <- posterior_predict(brms_m1, draws = 500)
@@ -125,6 +125,42 @@ predict(brms_m1, new_data_pcs) -> preds
 # Bind predictions together with new data frame
 cbind(new_data_pcs, jday_pred = preds[,1]) -> predicted_means
 
+# Genotypes ranked by PC1 and PC2
+predicted_means %>% 
+  group_by(genotype, pc1) %>% 
+  summarize(jday_mean = mean(jday_pred)) %>% 
+  ggplot(aes(x = reorder(genotype, jday_mean), y = jday_mean, fill = pc1)) +
+  geom_rug(length = unit(0.01, "npc"), alpha = 0.5, sides = "l") +
+  geom_point(aes(fill = pc1), shape = 21, size = 4) +
+  scale_fill_distiller(palette = "PiYG") +
+  theme_classic(base_size = 14) +
+  theme(axis.text.x = element_blank()) +
+  labs(y = "julian day", x = "genotype", fill = "PC 1") +
+  geom_curve(aes(x = 4, xend = 10, y = 143.5, yend = 141), curvature = 0.2, linewidth = 0.3) +
+  geom_curve(aes(x = 37, xend = 43, y = 153.5, yend = 158), curvature = -0.2, linewidth = 0.3) +
+  geom_text(aes(x = 16, y = 141), label = "Pahrump, NV", fontface = "italic", color = "maroon", size = 5) + 
+  geom_text(aes(x = 51, y = 158), label = "Flathead Lake, MT", fontface = "italic", color = "darkgreen", size = 5) -> genotype_pc1 
+
+predicted_means %>% 
+  group_by(genotype, pc2) %>% 
+  summarize(jday_mean = mean(jday_pred)) %>% 
+  ggplot(aes(x = reorder(genotype, jday_mean), y = jday_mean, fill = pc2)) +
+  geom_rug(length = unit(0.01, "npc"), alpha = 0.5, sides = "l") +
+  geom_point(aes(fill = pc2), shape = 21, size = 4) +
+  scale_fill_distiller(palette = "PuOr") +
+  theme_classic(base_size = 14) +
+  theme(axis.text.x = element_blank()) +
+  ylab("julian day") + xlab("genotype") +
+  labs(fill = "PC 2") +
+  geom_curve(aes(x = 46, xend = 52, y = 154, yend = 160), curvature = -0.2, linewidth = 0.3) + 
+  geom_curve(aes(x = 79, xend = 74, y = 159, yend = 152), curvature = -0.3, linewidth = 0.3) +
+  geom_text(aes(x = 58, y = 160), label = "Badlands, SD", fontface = "italic", color = "brown", size = 5) +  
+  geom_text(aes(x = 67.5, y = 152), label = "Tulameen, BC", fontface = "italic", color = "darkorchid4", size = 5) -> genotype_pc2
+
+png("figs/Fig2_GenotypePC.png", height = 6, width = 11.8, units = "in", res = 300)
+genotype_pc1 + genotype_pc2 + plot_layout(nrow = 2) + plot_annotation(tag_levels = "a", tag_prefix = "(", tag_suffix = ")")
+dev.off()
+
 predicted_means %>% 
   group_by(genotype, density) %>% 
   summarize(jday_mean = mean(jday_pred)) %>% 
@@ -181,25 +217,7 @@ test_dat2 %>%
 
 gxe_density + gxe_gravel + gxe_site 
 
-predicted_means %>% 
-  group_by(genotype, pc1) %>% 
-  summarize(jday_mean = mean(jday_pred)) %>% 
-  ggplot(aes(x = reorder(genotype, jday_mean), y = jday_mean, fill = pc1)) +
-  geom_point(aes(fill = pc1), shape = 21, size = 4) +
-  scale_fill_distiller(palette = "PiYG") +
-  coord_flip() +
-  theme(axis.text.y = element_blank()) +
-  ylab("jday") + xlab("genotype") -> genotype_pc1
 
-predicted_means %>% 
-  group_by(genotype, pc2) %>% 
-  summarize(jday_mean = mean(jday_pred)) %>% 
-  ggplot(aes(x = reorder(genotype, jday_mean), y = jday_mean, fill = pc2)) +
-  geom_point(aes(fill = pc2), shape = 21, size = 4) +
-  scale_fill_distiller(palette = "PuOr") +
-  coord_flip() +
-  theme(axis.text.y = element_blank()) +
-  ylab("jday") + xlab("genotype") -> genotype_pc2
 
 design <- c(
   area(1, 1, 6, 1),
