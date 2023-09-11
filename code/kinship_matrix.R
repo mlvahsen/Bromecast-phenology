@@ -215,14 +215,6 @@ gxe_site + gxe_gravel + gxe_density +
                   tag_suffix = ")")
 dev.off()
 
-mod <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
-              (1|genotype) + (1|genotype:site) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin)
-
-summary(mod)
-
-sjPlot::plot_model(mod, type = "pred", pred.type = "re", terms = c("site", "genotype"))+
-  theme(legend.position = "none") + geom_line()
-
 ## Posthoc calculations of long- and short-term climate effects ####
 
 # Get predicted mean jday for each cg site
@@ -273,12 +265,15 @@ rel_phen_diffs %>%
   ggplot(aes(x =comp, y = rel_shift )) +
   geom_point(size = 8) + 
   geom_segment( aes(x=comp, xend=comp, y=0, yend=rel_shift), linewidth = 1.5) +
-  xlab("") + ylab(expression(atop(paste("relative phenological shift "), paste("(", Delta," jday / ", Delta," mean temp)")))) +
+  xlab("") + ylab(expression(atop(paste("phenological sensitivity "), paste("(", Delta," jday / ", Delta," mean temp)")))) +
   theme_bw(base_size = 18) +
-  scale_x_discrete(labels = c("long \n (genotype source)", "short \n (BA vs WI)", "short \n (CH vs WI)", "short \n (SS vs WI)")) +
+  scale_x_discrete(labels = c("climate of origin \n (genotypic variation)",
+                              "environment \n (BA vs WI)",
+                              "environment \n (CH vs WI)",
+                              "environment \n (SS vs WI)")) +
   coord_flip() -> rel_phen_plot
 
-png("figs/prelim_relphenshift.png", height = 6.2, width = 7.3, res = 300, units = "in")
+png("figs/Fig4_PhenSens.png", height = 6.2, width = 7.3, res = 300, units = "in")
 rel_phen_plot
 dev.off()
 
