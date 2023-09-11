@@ -3,7 +3,7 @@
 # Load libraries
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
 library(here); library(readr); library(brms); library(RcppCNPy); library(lme4);
-library(patchwork); library(bayesplot); library(usmap)
+library(patchwork); library(bayesplot); library(usmap); library(egg)
 
 # Source in compiled data for the model
 source(here("supp_code", "compile_data.R"))
@@ -174,6 +174,22 @@ predict(brms_m1, new_data_pcs) -> preds
 cbind(new_data_pcs, jday_pred = preds[,1]) -> predicted_means
 
 # Genotypes ranked by PC1 and PC2
+# Make inset plot of PC1
+sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc1"), color = "gray37") +
+  ggtitle("") +
+  ylab("julian day") +
+  xlab("PC 1") +
+  ylim(135, 175) +
+  theme_classic(base_size = 14) +
+  theme(
+    panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') #transparent legend panel
+  )-> pc1_inset
+
 predicted_means %>% 
   group_by(genotype, pc1) %>% 
   summarize(jday_mean = mean(jday_pred)) %>% 
@@ -187,7 +203,26 @@ predicted_means %>%
   geom_curve(aes(x = 4, xend = 10, y = 143.5, yend = 141), curvature = 0.2, linewidth = 0.3) +
   geom_curve(aes(x = 37, xend = 43, y = 153.5, yend = 158), curvature = -0.2, linewidth = 0.3) +
   geom_text(aes(x = 16, y = 141), label = "Pahrump, NV", fontface = "italic", color = "maroon", size = 5) + 
-  geom_text(aes(x = 51, y = 158), label = "Flathead Lake, MT", fontface = "italic", color = "darkgreen", size = 5) -> genotype_pc1 
+  geom_text(aes(x = 51, y = 158), label = "Flathead Lake, MT", fontface = "italic", color = "darkgreen", size = 5) +
+  annotation_custom(
+    ggplotGrob(pc1_inset), 
+    xmin = 3, xmax = 28, ymin = 153, ymax = 174
+  ) -> genotype_pc1
+
+sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc2"), color = "gray37") +
+  ggtitle("") +
+  ylab("julian day") +
+  xlab("PC 2") +
+  ylim(135, 175) +
+  theme_classic(base_size = 14) +
+  theme(
+    panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') #transparent legend panel
+  )-> pc2_inset
 
 predicted_means %>% 
   group_by(genotype, pc2) %>% 
@@ -203,9 +238,13 @@ predicted_means %>%
   geom_curve(aes(x = 46, xend = 52, y = 154, yend = 160), curvature = -0.2, linewidth = 0.3) + 
   geom_curve(aes(x = 79, xend = 74, y = 159, yend = 152), curvature = -0.3, linewidth = 0.3) +
   geom_text(aes(x = 58, y = 160), label = "Badlands, SD", fontface = "italic", color = "brown", size = 5) +  
-  geom_text(aes(x = 67.5, y = 152), label = "Tulameen, BC", fontface = "italic", color = "darkorchid4", size = 5) -> genotype_pc2
+  geom_text(aes(x = 67.5, y = 152), label = "Tulameen, BC", fontface = "italic", color = "darkorchid4", size = 5) +
+  annotation_custom(
+    ggplotGrob(pc2_inset), 
+    xmin = 3, xmax = 28, ymin = 153, ymax = 174
+  )-> genotype_pc2
 
-png("figs/Fig2_GenotypePC.png", height = 6, width = 11.8, units = "in", res = 300)
+png("figs/Fig2_GenotypePC.png", height = 7, width = 11.8, units = "in", res = 300)
 genotype_pc1 + genotype_pc2 + plot_layout(nrow = 2) + plot_annotation(tag_levels = "a", tag_prefix = "(", tag_suffix = ")")
 dev.off()
 
@@ -326,6 +365,9 @@ rel_phen_plot
 dev.off()
 
 ## Calculations for in-text ####
+
+# Get table of regression model
+summary(brms_m1)
 
 # Calculate heritability -- still need to check how to do this when including
 # random slopes

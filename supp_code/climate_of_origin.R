@@ -70,7 +70,7 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
   geom_point(data = genotypes_pc, aes(x = lon, y = lat, group = NA, fill = PC1),
              color = "black", shape = 21, size = 3) +
   geom_point(data = cg_pc, aes(x = lon, y = lat, group = NA, shape = site_code),
-             size = 4, color = "dodgerblue", fill = "black", stroke = 1) +
+             size = 4, color = "black", fill = "black", stroke = 1) +
   theme_classic(base_size = 14) +
   scale_fill_distiller(palette = "PiYG", limits = c(-6.8,6.8)) +
   labs(fill = "PC 1",
@@ -89,7 +89,7 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
   geom_point(data = genotypes_pc, aes(x = lon, y = lat, group = NA, fill = PC2),
              color = "black", shape = 21, size = 3) +
   geom_point(data = cg_pc, aes(x = lon, y = lat, group = NA, shape = site_code),
-             size = 4, color = "dodgerblue", fill = "black", stroke = 1) +
+             size = 4, color = "black", fill = "black", stroke = 1) +
   theme_classic(base_size = 14) +
   scale_fill_distiller(palette = "PuOr", limits = c(-4.75, 4.15)) +
   labs(fill = "PC 2",
