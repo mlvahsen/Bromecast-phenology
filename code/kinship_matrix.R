@@ -92,7 +92,7 @@ dev.off()
 theme_set(theme_bw(base_size = 16))
 
 
-pred_dat_int <- emmeans::emmeans(brms_m1, ~pc1:density:gravel, at = list(pc1 = seq(-8,8,0.05)))
+pred_dat_int <- emmeans::emmeans(brms_m1, ~pc1:density:gravel, at = list(pc1 = seq(-7,7,0.05)))
 
 phen_plot <- phen_flower_kin %>% 
   mutate(gravel = ifelse(gravel == "black", "black gravel", "white gravel"),
@@ -115,8 +115,24 @@ summary(pred_dat_int) %>%
   scale_color_manual(values = c("gray47", "maroon")) +
   scale_fill_manual(values = c("gray47", "maroon")) -> int_plot
 
-png("figs/FigS3_int.png", height = 5.5, width = 10, res = 300, units = "in")
-int_plot
+pred_dat_int_pc2 <- emmeans::emmeans(brms_m1, ~pc2:density:gravel, at = list(pc2 = seq(-5,4.4,0.05)))
+
+summary(pred_dat_int_pc2) %>% 
+  mutate(jday = emmean,
+         gravel = ifelse(gravel == "black", "black gravel", "white gravel"),
+         density = ifelse(density == "hi", "high", "low")) %>% 
+  ggplot(aes(x = pc2, y = jday, color = density, linetype = density, fill = density)) +
+  geom_point(data = phen_plot, aes(x = pc2, y = jday), shape = 1, alpha = 0.2) +
+  geom_line(linewidth = 1.5) +
+  facet_wrap(~gravel) +
+  labs(y = "julian day", x = "PC 2: low → high seasonality") +
+  geom_ribbon(aes(x = pc2, ymin = lower.HPD, ymax = upper.HPD, fill = ), alpha = 0.6) +
+  scale_color_manual(values = c("gray47", "maroon")) +
+  scale_fill_manual(values = c("gray47", "maroon")) -> int_plot_pc2
+
+png("figs/FigS3_int.png", height = 10, width = 11, res = 300, units = "in")
+int_plot / int_plot_pc2 + plot_annotation(tag_levels = "a", tag_prefix = "(", tag_suffix = ")") +
+  plot_layout(guides = "collect")
 dev.off()
 
 pred_dat_int2 <- emmeans::emmeans(brms_m1, ~density:gravel:site)
