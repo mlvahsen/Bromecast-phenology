@@ -161,79 +161,67 @@ png("figs/Fig2_GenotypePC.png", height = 6, width = 11.8, units = "in", res = 30
 genotype_pc1 + genotype_pc2 + plot_layout(nrow = 2) + plot_annotation(tag_levels = "a", tag_prefix = "(", tag_suffix = ")")
 dev.off()
 
+# G X E graph
 predicted_means %>% 
   group_by(genotype, density) %>% 
   summarize(jday_mean = mean(jday_pred)) %>% 
+  mutate(density = ifelse(density == "hi", "high", "low")) %>% 
   ggplot(aes(x = density, y = jday_mean, group = genotype)) +
   geom_line(alpha = 0.5) + geom_point(size = 3, alpha = 0.5) +
-  labs(y = "jday")-> gxe_density
+  labs(y = "julian day") +
+  ylim(135, 175)+
+  geom_text(aes(x = 0.45, y = 174), label = "sigma[low]=='1.97 '(0.77, 3.04)",
+            parse = T, size = 5, hjust = 0)-> gxe_density
 
 predicted_means %>% 
   group_by(genotype, gravel) %>% 
   summarize(jday_mean = mean(jday_pred)) %>% 
   ggplot(aes(x = gravel, y = jday_mean, group = genotype)) +
   geom_line(alpha = 0.5) + geom_point(size = 3, alpha = 0.5) +
-  labs(y = "jday")-> gxe_gravel
+  labs(y = "julian day") +
+  ylim(135, 175) +
+  geom_text(aes(x = 0.45, y = 174), label = "sigma[white]=='1.17 '(0.11, 2.27)",
+            parse = T, size = 5, hjust = 0)-> gxe_gravel
 
 predicted_means %>% 
   group_by(genotype, site) %>% 
-  filter(site %in% c("CH", "SS", "BA")) %>% 
   summarize(jday_mean = mean(jday_pred)) %>% 
+  mutate(site = case_when(site == "BA" ~ "Baltzor (BA)",
+                          site == "CH" ~ "Cheyenne (CH)",
+                          site == "SS" ~ "Sheep Station (SS)",
+                          site == "WI" ~ "Wildcat (WI)")) %>% 
   ggplot(aes(x = site, y = jday_mean, group = genotype)) +
   geom_line(alpha = 0.5) + geom_point(size = 3, alpha = 0.5) +
-  labs(y = "jday") -> gxe_site
-
-predicted_means %>% 
-  group_by(genotype, site) %>% 
-  filter(site == "WI") %>% 
-  summarize(jday_mean = mean(jday_pred)) %>% 
-  arrange(jday_mean) %>%  
-  ungroup() -> test_dat 
-  
-
-test_dat %>% 
-  ggplot(aes(x = 1, y = jday_mean, color = jday_mean)) +
-  geom_point(size = 2) +
-  scale_color_distiller(palette = "Spectral") -> plot
-
-layer_data(plot) %>% 
-  mutate(genotype = test_dat$genotype) -> color_info
-
-predicted_means %>% 
-  group_by(genotype, site) %>% 
-  filter(site == "BA") %>% 
-  summarize(jday_mean = mean(jday_pred)) %>% 
-  ungroup() %>% 
-  merge(color_info %>% select(genotype, colour)) %>% 
-  mutate(color_id = factor(1:92)) -> test_dat2 
-  
-
-test_dat2 %>% 
-  ggplot(aes(x = 1, y = jday_mean, color = color_id)) +
-  geom_point() +
-  scale_color_manual(values = rainbow(92)) +
-  theme(legend.position = "none")
-  
-
-gxe_density + gxe_gravel + gxe_site 
-
-
+  labs(y = "julian day", x = "common garden")+
+  geom_text(aes(x = 0.5, y = 129), label = "sigma[BA]=='1.89 '(0.28, 3.47)",
+            parse = T, size = 5, hjust = 0) +
+  geom_text(aes(x = 0.5, y = 126), label = "sigma[WI]=='2.47 '(1.26, '3.60')",
+            parse = T, size = 5, hjust = 0) +
+  geom_text(aes(x = 0.5, y = 123), label = "sigma[CH]=='0.90 '(0.03, '2.30')",
+            parse = T, size = 5, hjust = 0) -> gxe_site
 
 design <- c(
-  area(1, 1, 6, 1),
-  area(1, 2, 6, 2),
-  area(1, 3, 2, 4),
-  area(3, 3, 4, 4),
-  area(5, 3, 6, 4)
+  area(1, 1, 4, 3),
+  area(1, 4, 2, 5),
+  area(3, 4, 4, 5)
 )
 
-plot(design)
 
-png("figs/prelim_gxe.png", height = 9, width = 11, res = 300, units = "in")
-genotype_pc1 + genotype_pc2 + gxe_density + gxe_gravel + gxe_site +
+png("figs/Fig3_gxe.png", height = 7, width = 12.4, res = 300, units = "in")
+gxe_site + gxe_gravel + gxe_density +
   plot_layout(design = design, guides = "collect") +
-  plot_annotation(tag_levels = "a") & theme(legend.position = "left")
+  plot_annotation(tag_levels = "a",
+                  tag_prefix = "(",
+                  tag_suffix = ")")
 dev.off()
+
+mod <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
+              (1|genotype) + (1|genotype:site) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin)
+
+summary(mod)
+
+sjPlot::plot_model(mod, type = "pred", pred.type = "re", terms = c("site", "genotype"))+
+  theme(legend.position = "none") + geom_line()
 
 ## Posthoc calculations of long- and short-term climate effects ####
 
