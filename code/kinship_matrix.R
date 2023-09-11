@@ -91,14 +91,62 @@ dev.off()
 
 theme_set(theme_bw(base_size = 16))
 
-png("figs/prelim_int.png", height = 4, width = 8, res = 300, units = "in")
-sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc1","density", "gravel")) +
-  scale_color_manual(values = c("orange", "dodgerblue")) + ggtitle("")
+
+pred_dat_int <- emmeans::emmeans(brms_m1, ~pc1:density:gravel, at = list(pc1 = seq(-8,8,0.05)))
+
+phen_plot <- phen_flower_kin %>% 
+  mutate(gravel = ifelse(gravel == "black", "black gravel", "white gravel"),
+         density = ifelse(density == "hi", "high", "low"),
+         site = case_when(site == "SS" ~ "Sheep Station (SS)",
+                          site == "CH" ~ "Cheyenne (CH)",
+                          site == "WI" ~ "Wildcat (WI)",
+                          site == "BA" ~ "Baltzor (BA)"))
+
+summary(pred_dat_int) %>% 
+  mutate(jday = emmean,
+         gravel = ifelse(gravel == "black", "black gravel", "white gravel"),
+         density = ifelse(density == "hi", "high", "low")) %>% 
+  ggplot(aes(x = pc1, y = jday, color = density, linetype = density, fill = density)) +
+  geom_point(data = phen_plot, aes(x = pc1, y = jday), shape = 1, alpha = 0.2) +
+  geom_line(linewidth = 1.5) +
+  facet_wrap(~gravel) +
+  labs(y = "julian day", x = "PC 1: cool & wet → hot & dry") +
+  geom_ribbon(aes(x = pc1, ymin = lower.HPD, ymax = upper.HPD, fill = ), alpha = 0.6) +
+  scale_color_manual(values = c("gray47", "maroon")) +
+  scale_fill_manual(values = c("gray47", "maroon")) -> int_plot
+
+png("figs/FigS3_int.png", height = 5.5, width = 10, res = 300, units = "in")
+int_plot
 dev.off()
 
-png("figs/prelim_site.png", height = 5, width = 5.5, res = 300, units = "in")
-sjPlot::plot_model(brms_m1, type = "emm", terms = c("gravel","density","site")) +
-  scale_color_manual(values = c("orange", "dodgerblue")) + ggtitle("")
+pred_dat_int2 <- emmeans::emmeans(brms_m1, ~density:gravel:site)
+
+summary(pred_dat_int2) %>% 
+  mutate(jday = emmean,
+         gravel = ifelse(gravel == "black", "black gravel", "white gravel"),
+         site = case_when(site == "SS" ~ "Sheep Station (SS)",
+                          site == "CH" ~ "Cheyenne (CH)",
+                          site == "WI" ~ "Wildcat (WI)",
+                          site == "BA" ~ "Baltzor (BA)"),
+         density = ifelse(density == "hi", "high", "low")) %>% 
+  ggplot(aes(x = gravel, y = jday, color = density, fill = density)) +
+  geom_jitter(data = phen_plot, aes(x = gravel, y = jday), shape = 1,
+              position = position_jitterdodge(
+                jitter.width = 0.2,
+                jitter.height = 0,
+                dodge.width = 0.75,
+                seed = NA
+              ), size = 0.8, alpha = 0.1) +
+  geom_errorbar(aes(x = gravel, ymin = lower.HPD, ymax = upper.HPD),
+                width = 0, position = position_dodge(width = 0.75), color = "black") +
+  geom_point(size = 3, position = position_dodge(width = 0.75), pch = 21, color = "black") +
+  facet_wrap(~site) +
+  scale_color_manual(values = c("gray47", "maroon")) +
+  scale_fill_manual(values = c("gray47", "maroon")) +
+  ylab("julian day") -> int_plot2
+  
+png("figs/FigS4_int.png", height = 9.5, width = 9.5, res = 300, units = "in") 
+int_plot2
 dev.off()
 
 # Create genotype graph
