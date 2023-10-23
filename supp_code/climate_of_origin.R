@@ -8,8 +8,13 @@ library(tidyverse); library(here);
 library(geosphere); library(usmap);
 library(patchwork); library(ggnewscale)
 
+<<<<<<< HEAD
 # Set plot theme
 theme_set(theme_bw(base_size = 18))
+=======
+# Set plotting theme
+theme_set(theme_bw(base_size = 14))
+>>>>>>> ab2c13a2a8a723af2beded347ac8796991f0c4c2
 
 # Read in bioclimatic data for genotypes (and common garden locations)
 bioclim <- read_csv("~/Git/Bromecast/gardens/deriveddata/BioclimateOfOrigin_AllGenotypes.csv")
@@ -69,14 +74,24 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
   geom_point(data = genotypes_pc, aes(x = lon, y = lat, group = NA, fill = PC1),
              color = "black", shape = 21, size = 3) +
   geom_point(data = cg_pc, aes(x = lon, y = lat, group = NA, shape = site_code),
+<<<<<<< HEAD
              size = 4, color = "dodgerblue", stroke = 1) +
   theme_classic(base_size = 18) +
+=======
+             size = 4, color = "black", fill = "black", stroke = 1) +
+  theme_classic(base_size = 14) +
+>>>>>>> ab2c13a2a8a723af2beded347ac8796991f0c4c2
   scale_fill_distiller(palette = "PiYG", limits = c(-6.8,6.8)) +
   labs(fill = "PC 1",
        x = "longitude",
        y = "latitude",
        shape = "common garden") +
+<<<<<<< HEAD
   scale_shape_manual(values = c(0,5,2,6))-> pc1
+=======
+  scale_shape_manual(values = c(0,5,2,6)) +
+  ggtitle("(a) PC 1: cool & wet → hot & dry") -> pc1
+>>>>>>> ab2c13a2a8a723af2beded347ac8796991f0c4c2
 
 # Plot of PC2 by site for genotypes
 ggplot(data=region, aes(x=long, y=lat, group = group)) +
@@ -87,14 +102,24 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
   geom_point(data = genotypes_pc, aes(x = lon, y = lat, group = NA, fill = PC2),
              color = "black", shape = 21, size = 3) +
   geom_point(data = cg_pc, aes(x = lon, y = lat, group = NA, shape = site_code),
+<<<<<<< HEAD
              size = 4, color = "dodgerblue", stroke = 1) +
   theme_classic(base_size = 18) +
+=======
+             size = 4, color = "black", fill = "black", stroke = 1) +
+  theme_classic(base_size = 14) +
+>>>>>>> ab2c13a2a8a723af2beded347ac8796991f0c4c2
   scale_fill_distiller(palette = "PuOr", limits = c(-4.75, 4.15)) +
   labs(fill = "PC 2",
        x = "longitude",
        y = "latitude",
        shape = "common garden") +
+<<<<<<< HEAD
   scale_shape_manual(values = c(0,5,2,6)) -> pc2
+=======
+  scale_shape_manual(values = c(0,5,2,6)) +
+  ggtitle("(b) PC 2: low → high seasonality") -> pc2
+>>>>>>> ab2c13a2a8a723af2beded347ac8796991f0c4c2
 
 # Plot of common garden sites
 cg_pc %>% 
@@ -110,6 +135,7 @@ cg_pc %>%
   ylab("elevation (m)") +
   xlab("longitude") +
   guides(shape = "none", fill = "none") +
+<<<<<<< HEAD
   annotate(geom = "text", x = -117, y = 1010, label = "Wildcat (WI)", size = 4) +
   annotate(geom = "text", x = -117, y = 1460, label = "Baltzor (BA)", size = 4) +
   annotate(geom = "text", x = -112, y = 1930, label = "Sheep Station (SS)", size = 4) +
@@ -117,6 +143,22 @@ cg_pc %>%
 
 png(here("figs/Fig1_ClimateOrigin.png"), height = 7, width = 12.3, res = 300, units = "in")
 pc1 + pc2 +cg_pc_plot + plot_layout(guides = "collect") + plot_annotation(tag_levels = "a") & theme(legend.direction = "vertical",
+=======
+  annotate(geom = "text", x = -117, y = 980, label = "Wildcat (WI)", size = 5) +
+  annotate(geom = "text", x = -117, y = 1430, label = "Baltzor (BA)", size = 5) +
+  annotate(geom = "text", x = -112, y = 1870, label = "Sheep Station (SS)", size = 5) +
+  annotate(geom = "text", x = -105, y = 2090, label = "Cheyenne (CH)", size = 5) +
+  geom_curve(aes(x = -110.5, y = 1480, xend = -112.2, yend = 1680), linewidth = 0.3,
+             color = "gray37", arrow = arrow(length = unit(0.08, "inches")), curvature = -0.3) +
+  geom_curve(aes(x = -108, y = 1620, xend = -111.6, yend = 1670), linewidth = 0.3, curvature = 0.3,
+             color = "gray37", arrow = arrow(length = unit(0.08, "inches"))) +
+  geom_text(aes(x = -108, y = 1480), label = "PC 2 value", fontface = "italic", color = "gray37") +
+  geom_text(aes(x = -105.8, y = 1610), label = "PC 1 value", fontface = "italic", color = "gray37") +
+  ggtitle("(c) common gardens") -> cg_pc_plot
+
+png(here("figs/Fig1_ClimateOrigin.png"), height = 6.8, width = 13.3, res = 300, units = "in")
+pc1 + pc2 +cg_pc_plot + plot_layout(guides = "collect", nrow = 1) & theme(legend.direction = "vertical",
+>>>>>>> ab2c13a2a8a723af2beded347ac8796991f0c4c2
                                                                 legend.box = "horizontal", legend.position = "bottom")
 
 dev.off()

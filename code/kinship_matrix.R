@@ -3,35 +3,35 @@
 # Load libraries
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
 library(here); library(readr); library(brms); library(RcppCNPy); library(lme4);
-library(patchwork); library(bayesplot); library(usmap)
+library(patchwork); library(bayesplot); library(usmap); library(egg)
 
 # Source in compiled data for the model
 source(here("supp_code", "compile_data.R"))
 
-## Check effect of herbivorized plants on analysis ####
-# Fit linear model without herbivory plants and with herbivory plants
-phen_flower_kin %>% 
-  filter(herbivory == "Y") %>% 
-  group_by(site, density) %>% 
-  summarize(n = n()) # Most of these are from Sheep Station
-
-# Fit linear model with all data
-mod_all <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
-                  (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin)
-
-emmeans::emmeans(mod_all, ~site)
-
-# Drop all herbivory instances
-phen_flower_kin %>% 
-  filter(herbivory != "Y") -> phen_flower_kin_noherb
-
-# Refit model
-mod_noherb <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
-                     (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin_noherb)
-
-# Seems like the results are basically the same so fit the model with all of the
-# data for now
-
+# ## Check effect of herbivorized plants on analysis ####
+# # Fit linear model without herbivory plants and with herbivory plants
+# phen_flower_kin %>% 
+#   filter(herbivory == "Y") %>% 
+#   group_by(site, density) %>% 
+#   summarize(n = n()) # Most of these are from Sheep Station
+# 
+# # Fit linear model with all data
+# mod_all <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
+#                   (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin)
+# 
+# emmeans::emmeans(mod_all, ~site)
+# 
+# # Drop all herbivory instances
+# phen_flower_kin %>% 
+#   filter(herbivory != "Y") -> phen_flower_kin_noherb
+# 
+# # Refit model
+# mod_noherb <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
+#                      (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin_noherb)
+# 
+# # Seems like the results are basically the same so fit the model with all of the
+# # data for now
+# 
 ## Fit Bayesian model ####
 # Fit Bayesian linear model
 # start <- Sys.time()
@@ -56,6 +56,8 @@ mod_noherb <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + s
 brms_m1 <- read_rds("~/Desktop/brms_output.rds")
 
 ## Create graphics - Model checking ####
+
+brms_m1 <- read_rds("~/Downloads/brms_output.rds")
 
 # Generate posterior predictive distribution
 ppreds <- posterior_predict(brms_m1, draws = 500)
@@ -92,14 +94,78 @@ dev.off()
 
 theme_set(theme_bw(base_size = 16))
 
-png("figs/prelim_int.png", height = 4, width = 8, res = 300, units = "in")
-sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc1","density", "gravel")) +
-  scale_color_manual(values = c("orange", "dodgerblue")) + ggtitle("")
+
+pred_dat_int <- emmeans::emmeans(brms_m1, ~pc1:density:gravel, at = list(pc1 = seq(-7,7,0.05)))
+
+phen_plot <- phen_flower_kin %>% 
+  mutate(gravel = ifelse(gravel == "black", "black gravel", "white gravel"),
+         density = ifelse(density == "hi", "high", "low"),
+         site = case_when(site == "SS" ~ "Sheep Station (SS)",
+                          site == "CH" ~ "Cheyenne (CH)",
+                          site == "WI" ~ "Wildcat (WI)",
+                          site == "BA" ~ "Baltzor (BA)"))
+
+summary(pred_dat_int) %>% 
+  mutate(jday = emmean,
+         gravel = ifelse(gravel == "black", "black gravel", "white gravel"),
+         density = ifelse(density == "hi", "high", "low")) %>% 
+  ggplot(aes(x = pc1, y = jday, color = density, linetype = density, fill = density)) +
+  geom_point(data = phen_plot, aes(x = pc1, y = jday), shape = 1, alpha = 0.2) +
+  geom_line(linewidth = 1.5) +
+  facet_wrap(~gravel) +
+  labs(y = "julian day", x = "PC 1: cool & wet → hot & dry") +
+  geom_ribbon(aes(x = pc1, ymin = lower.HPD, ymax = upper.HPD, fill = ), alpha = 0.6) +
+  scale_color_manual(values = c("gray47", "maroon")) +
+  scale_fill_manual(values = c("gray47", "maroon")) -> int_plot
+
+pred_dat_int_pc2 <- emmeans::emmeans(brms_m1, ~pc2:density:gravel, at = list(pc2 = seq(-5,4.4,0.05)))
+
+summary(pred_dat_int_pc2) %>% 
+  mutate(jday = emmean,
+         gravel = ifelse(gravel == "black", "black gravel", "white gravel"),
+         density = ifelse(density == "hi", "high", "low")) %>% 
+  ggplot(aes(x = pc2, y = jday, color = density, linetype = density, fill = density)) +
+  geom_point(data = phen_plot, aes(x = pc2, y = jday), shape = 1, alpha = 0.2) +
+  geom_line(linewidth = 1.5) +
+  facet_wrap(~gravel) +
+  labs(y = "julian day", x = "PC 2: low → high seasonality") +
+  geom_ribbon(aes(x = pc2, ymin = lower.HPD, ymax = upper.HPD, fill = ), alpha = 0.6) +
+  scale_color_manual(values = c("gray47", "maroon")) +
+  scale_fill_manual(values = c("gray47", "maroon")) -> int_plot_pc2
+
+png("figs/FigS3_int.png", height = 10, width = 11, res = 300, units = "in")
+int_plot / int_plot_pc2 + plot_annotation(tag_levels = "a", tag_prefix = "(", tag_suffix = ")") +
+  plot_layout(guides = "collect")
 dev.off()
 
-png("figs/prelim_site.png", height = 5, width = 5.5, res = 300, units = "in")
-sjPlot::plot_model(brms_m1, type = "emm", terms = c("gravel","density","site")) +
-  scale_color_manual(values = c("orange", "dodgerblue")) + ggtitle("")
+pred_dat_int2 <- emmeans::emmeans(brms_m1, ~density:gravel:site)
+
+summary(pred_dat_int2) %>% 
+  mutate(jday = emmean,
+         gravel = ifelse(gravel == "black", "black gravel", "white gravel"),
+         site = case_when(site == "SS" ~ "Sheep Station (SS)",
+                          site == "CH" ~ "Cheyenne (CH)",
+                          site == "WI" ~ "Wildcat (WI)",
+                          site == "BA" ~ "Baltzor (BA)"),
+         density = ifelse(density == "hi", "high", "low")) %>% 
+  ggplot(aes(x = gravel, y = jday, color = density, fill = density)) +
+  geom_jitter(data = phen_plot, aes(x = gravel, y = jday), shape = 1,
+              position = position_jitterdodge(
+                jitter.width = 0.2,
+                jitter.height = 0,
+                dodge.width = 0.75,
+                seed = NA
+              ), size = 0.8, alpha = 0.1) +
+  geom_errorbar(aes(x = gravel, ymin = lower.HPD, ymax = upper.HPD),
+                width = 0, position = position_dodge(width = 0.75), color = "black") +
+  geom_point(size = 3, position = position_dodge(width = 0.75), pch = 21, color = "black") +
+  facet_wrap(~site) +
+  scale_color_manual(values = c("gray47", "maroon")) +
+  scale_fill_manual(values = c("gray47", "maroon")) +
+  ylab("julian day") -> int_plot2
+  
+png("figs/FigS4_int.png", height = 9.5, width = 9.5, res = 300, units = "in") 
+int_plot2
 dev.off()
 
 # Create genotype graph
@@ -126,64 +192,133 @@ predict(brms_m1, new_data_pcs) -> preds
 # Bind predictions together with new data frame
 cbind(new_data_pcs, jday_pred = preds[,1]) -> predicted_means
 
+# Genotypes ranked by PC1 and PC2
+# Make inset plot of PC1
+sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc1"), color = "gray37") +
+  ggtitle("") +
+  ylab("julian day") +
+  xlab("PC 1") +
+  ylim(135, 175) +
+  theme_classic(base_size = 14) +
+  theme(
+    panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') #transparent legend panel
+  )-> pc1_inset
+
+predicted_means %>% 
+  group_by(genotype, pc1) %>% 
+  summarize(jday_mean = mean(jday_pred)) %>% 
+  ggplot(aes(x = reorder(genotype, jday_mean), y = jday_mean, fill = pc1)) +
+  geom_rug(length = unit(0.01, "npc"), alpha = 0.5, sides = "l") +
+  geom_point(aes(fill = pc1), shape = 21, size = 4) +
+  scale_fill_distiller(palette = "PiYG") +
+  theme_classic(base_size = 14) +
+  theme(axis.text.x = element_blank()) +
+  labs(y = "julian day", x = "genotype", fill = "PC 1") +
+  geom_curve(aes(x = 4, xend = 10, y = 143.5, yend = 141), curvature = 0.2, linewidth = 0.3) +
+  geom_curve(aes(x = 37, xend = 43, y = 153.5, yend = 158), curvature = -0.2, linewidth = 0.3) +
+  geom_text(aes(x = 16, y = 141), label = "Pahrump, NV", fontface = "italic", color = "maroon", size = 5) + 
+  geom_text(aes(x = 51, y = 158), label = "Flathead Lake, MT", fontface = "italic", color = "darkgreen", size = 5) +
+  annotation_custom(
+    ggplotGrob(pc1_inset), 
+    xmin = 3, xmax = 28, ymin = 153, ymax = 174
+  ) -> genotype_pc1
+
+sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc2"), color = "gray37") +
+  ggtitle("") +
+  ylab("julian day") +
+  xlab("PC 2") +
+  ylim(135, 175) +
+  theme_classic(base_size = 14) +
+  theme(
+    panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') #transparent legend panel
+  )-> pc2_inset
+
+predicted_means %>% 
+  group_by(genotype, pc2) %>% 
+  summarize(jday_mean = mean(jday_pred)) %>% 
+  ggplot(aes(x = reorder(genotype, jday_mean), y = jday_mean, fill = pc2)) +
+  geom_rug(length = unit(0.01, "npc"), alpha = 0.5, sides = "l") +
+  geom_point(aes(fill = pc2), shape = 21, size = 4) +
+  scale_fill_distiller(palette = "PuOr") +
+  theme_classic(base_size = 14) +
+  theme(axis.text.x = element_blank()) +
+  ylab("julian day") + xlab("genotype") +
+  labs(fill = "PC 2") +
+  geom_curve(aes(x = 46, xend = 52, y = 154, yend = 160), curvature = -0.2, linewidth = 0.3) + 
+  geom_curve(aes(x = 79, xend = 74, y = 159, yend = 152), curvature = -0.3, linewidth = 0.3) +
+  geom_text(aes(x = 58, y = 160), label = "Badlands, SD", fontface = "italic", color = "brown", size = 5) +  
+  geom_text(aes(x = 67.5, y = 152), label = "Tulameen, BC", fontface = "italic", color = "darkorchid4", size = 5) +
+  annotation_custom(
+    ggplotGrob(pc2_inset), 
+    xmin = 3, xmax = 28, ymin = 153, ymax = 174
+  )-> genotype_pc2
+
+png("figs/Fig2_GenotypePC.png", height = 7, width = 11.8, units = "in", res = 300)
+genotype_pc1 + genotype_pc2 + plot_layout(nrow = 2) + plot_annotation(tag_levels = "a", tag_prefix = "(", tag_suffix = ")")
+dev.off()
+
+# G X E graph
 predicted_means %>% 
   group_by(genotype, density) %>% 
   summarize(jday_mean = mean(jday_pred)) %>% 
+  mutate(density = ifelse(density == "hi", "high", "low")) %>% 
   ggplot(aes(x = density, y = jday_mean, group = genotype)) +
   geom_line(alpha = 0.5) + geom_point(size = 3, alpha = 0.5) +
-  labs(y = "jday")-> gxe_density
+  labs(y = "julian day") +
+  ylim(135, 175)+
+  geom_text(aes(x = 0.45, y = 174), label = "sigma[low]=='1.97 '(0.77, 3.04)",
+            parse = T, size = 5, hjust = 0)-> gxe_density
 
 predicted_means %>% 
   group_by(genotype, gravel) %>% 
   summarize(jday_mean = mean(jday_pred)) %>% 
   ggplot(aes(x = gravel, y = jday_mean, group = genotype)) +
   geom_line(alpha = 0.5) + geom_point(size = 3, alpha = 0.5) +
-  labs(y = "jday")-> gxe_gravel
+  labs(y = "julian day") +
+  ylim(135, 175) +
+  geom_text(aes(x = 0.45, y = 174), label = "sigma[white]=='1.17 '(0.11, 2.27)",
+            parse = T, size = 5, hjust = 0)-> gxe_gravel
 
 predicted_means %>% 
   group_by(genotype, site) %>% 
-  filter(site %in% c("CH", "SS", "BA")) %>% 
   summarize(jday_mean = mean(jday_pred)) %>% 
+  mutate(site = case_when(site == "BA" ~ "Baltzor (BA)",
+                          site == "CH" ~ "Cheyenne (CH)",
+                          site == "SS" ~ "Sheep Station (SS)",
+                          site == "WI" ~ "Wildcat (WI)")) %>% 
   ggplot(aes(x = site, y = jday_mean, group = genotype)) +
   geom_line(alpha = 0.5) + geom_point(size = 3, alpha = 0.5) +
-  labs(y = "jday") -> gxe_site
-
-gxe_density + gxe_gravel + gxe_site 
-
-predicted_means %>% 
-  group_by(genotype, pc1) %>% 
-  summarize(jday_mean = mean(jday_pred)) %>% 
-  ggplot(aes(x = reorder(genotype, jday_mean), y = jday_mean, fill = pc1)) +
-  geom_point(aes(fill = pc1), shape = 21, size = 4) +
-  scale_fill_distiller(palette = "PiYG") +
-  coord_flip() +
-  theme(axis.text.y = element_blank()) +
-  ylab("jday") + xlab("genotype") -> genotype_pc1
-
-predicted_means %>% 
-  group_by(genotype, pc2) %>% 
-  summarize(jday_mean = mean(jday_pred)) %>% 
-  ggplot(aes(x = reorder(genotype, jday_mean), y = jday_mean, fill = pc2)) +
-  geom_point(aes(fill = pc2), shape = 21, size = 4) +
-  scale_fill_distiller(palette = "PuOr") +
-  coord_flip() +
-  theme(axis.text.y = element_blank()) +
-  ylab("jday") + xlab("genotype") -> genotype_pc2
+  labs(y = "julian day", x = "common garden")+
+  geom_text(aes(x = 0.5, y = 129), label = "sigma[BA]=='1.89 '(0.28, 3.47)",
+            parse = T, size = 5, hjust = 0) +
+  geom_text(aes(x = 0.5, y = 126), label = "sigma[WI]=='2.47 '(1.26, '3.60')",
+            parse = T, size = 5, hjust = 0) +
+  geom_text(aes(x = 0.5, y = 123), label = "sigma[CH]=='0.90 '(0.03, '2.30')",
+            parse = T, size = 5, hjust = 0) -> gxe_site
 
 design <- c(
-  area(1, 1, 6, 1),
-  area(1, 2, 6, 2),
-  area(1, 3, 2, 4),
-  area(3, 3, 4, 4),
-  area(5, 3, 6, 4)
+  area(1, 1, 4, 3),
+  area(1, 4, 2, 5),
+  area(3, 4, 4, 5)
 )
 
-plot(design)
 
-png("figs/prelim_gxe.png", height = 9, width = 11, res = 300, units = "in")
-genotype_pc1 + genotype_pc2 + gxe_density + gxe_gravel + gxe_site +
+png("figs/Fig3_gxe.png", height = 7, width = 12.4, res = 300, units = "in")
+gxe_site + gxe_gravel + gxe_density +
   plot_layout(design = design, guides = "collect") +
-  plot_annotation(tag_levels = "a") & theme(legend.position = "left")
+  plot_annotation(tag_levels = "a",
+                  tag_prefix = "(",
+                  tag_suffix = ")")
 dev.off()
 
 ## Posthoc calculations of long- and short-term climate effects ####
@@ -254,18 +389,31 @@ rel_phen_diffs %>%
 rel_phen_diffs_means %>% 
   ggplot(aes(x = cat, y = mean)) +
   geom_point(size = 8) + 
+<<<<<<< HEAD
   geom_segment(aes(x=cat, xend=cat, y=mean + se, yend=mean-se), linewidth = 1) +
   ylim(0,10) +
   xlab("") + ylab(expression(atop(paste("relative phenological shift "), paste("(", Delta," julian day / ", Delta," mean temp)")))) +
   theme_bw(base_size = 18) +
   scale_x_discrete(labels = c("long \n (genotype source)", "short \n (common garden site)")) +
+=======
+  geom_segment( aes(x=comp, xend=comp, y=0, yend=rel_shift), linewidth = 1.5) +
+  xlab("") + ylab(expression(atop(paste("phenological sensitivity "), paste("(", Delta," jday / ", Delta," mean temp)")))) +
+  theme_bw(base_size = 18) +
+  scale_x_discrete(labels = c("climate of origin \n (genotypic variation)",
+                              "environment \n (BA vs WI)",
+                              "environment \n (CH vs WI)",
+                              "environment \n (SS vs WI)")) +
+>>>>>>> ab2c13a2a8a723af2beded347ac8796991f0c4c2
   coord_flip() -> rel_phen_plot
 
-png("figs/prelim_relphenshift.png", height = 6.2, width = 7.3, res = 300, units = "in")
+png("figs/Fig4_PhenSens.png", height = 6.2, width = 7.3, res = 300, units = "in")
 rel_phen_plot
 dev.off()
 
 ## Calculations for in-text ####
+
+# Get table of regression model
+summary(brms_m1)
 
 # Calculate heritability -- still need to check how to do this when including
 # random slopes
