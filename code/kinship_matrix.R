@@ -34,23 +34,26 @@ mod_noherb <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + s
 
 ## Fit Bayesian model ####
 # Fit Bayesian linear model
-start <- Sys.time()
+# start <- Sys.time()
+# 
+# brms_m1 <- brm(
+#   jday ~ 1 + density * gravel * pc1 + density * gravel * pc2 +
+#     site * pc1 + site * pc2 + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
+#     (1 | block_unique) + (1 | plot_unique),
+#   data = phen_flower_kin,
+#   data2 = list(Amat = kin),
+#   family = gaussian(),
+#   chains = 3, cores = 1, iter = 1000
+# )
+# 
+# end <- Sys.time()
+# 
+# end - start
 
-brms_m1 <- brm(
-  jday ~ 1 + density * gravel * pc1 + density * gravel * pc2 +
-    site * pc1 + site * pc2 + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
-    (1 | block_unique) + (1 | plot_unique),
-  data = phen_flower_kin,
-  data2 = list(Amat = kin),
-  family = gaussian(),
-  chains = 3, cores = 1, iter = 1000
-)
+#write_rds(brms_m1, "~/Desktop/brms_output.rds")
+#summary(brms_m1)
 
-end <- Sys.time()
-
-end - start
-
-summary(brms_m1)
+brms_m1 <- read_rds("~/Desktop/brms_output.rds")
 
 ## Create graphics - Model checking ####
 
@@ -199,6 +202,9 @@ predicted_means %>%
 # Source in air temperature data
 source("supp_code/prism_wrangle.R")
 
+# Set site colors
+colors <- c("#88CCEE", "#AA4499", "#DDCC77", "#44AA99")
+
 # Get temperature means for each common garden site
 site_temp %>% 
   group_by(site_code) %>% 
@@ -220,22 +226,39 @@ collect_ests <- cbind(genotype_max_means, collect_temp_means) %>% dplyr::select(
 tibble(jday_diff = c(site_ests$mean_jday[1] - site_ests$mean_jday[4],
                      site_ests$mean_jday[2] - site_ests$mean_jday[4],
                      site_ests$mean_jday[3] - site_ests$mean_jday[4],
+                     site_ests$mean_jday[1] - site_ests$mean_jday[2],
+                     site_ests$mean_jday[3] - site_ests$mean_jday[2],
+                     site_ests$mean_jday[1] - site_ests$mean_jday[3],
                      collect_ests$mean_jday[1] - collect_ests$mean_jday[2]),
        temp_diff = c(site_ests$mean[4] - site_ests$mean[1],
                      site_ests$mean[4] - site_ests$mean[2],
                      site_ests$mean[4] - site_ests$mean[3],
+                     site_ests$mean[1] - site_ests$mean[2],
+                     site_ests$mean[3] - site_ests$mean[2],
+                     site_ests$mean[1] - site_ests$mean[3],
                      collect_ests$mean[2] - collect_ests$mean[1]),
-       comp = c("short (BA vs WI)", "short (CH vs WI)", "short (SS vs WI)", "long (genotype source)")) %>% 
+       comp = c("short (BA vs WI)", "short (CH vs WI)", "short (SS vs WI)",
+                "short (BA vs CH)", "short (SS vs CH)", "short (BA vs SS)",
+                "long (genotype source)")) %>% 
   mutate(rel_shift = jday_diff / temp_diff) -> rel_phen_diffs 
+
+rel_phen_diffs %>% 
+  mutate(cat = ifelse(grepl("short", comp), "short", "long")) %>% 
+  group_by(cat) %>% 
+  summarize(mean = mean(rel_shift),
+            sd = sd(rel_shift, na.rm = T),
+            se = sd/sqrt(n())) %>% 
+  mutate(across(everything(), ~ ifelse(is.na(.), 0, .)))-> rel_phen_diffs_means
   
 # Create relative phenological difference plot
-rel_phen_diffs %>% 
-  ggplot(aes(x =comp, y = rel_shift )) +
+rel_phen_diffs_means %>% 
+  ggplot(aes(x = cat, y = mean)) +
   geom_point(size = 8) + 
-  geom_segment( aes(x=comp, xend=comp, y=0, yend=rel_shift), linewidth = 1.5) +
-  xlab("") + ylab(expression(atop(paste("relative phenological shift "), paste("(", Delta," jday / ", Delta," mean temp)")))) +
+  geom_segment(aes(x=cat, xend=cat, y=mean + se, yend=mean-se), linewidth = 1) +
+  ylim(0,10) +
+  xlab("") + ylab(expression(atop(paste("relative phenological shift "), paste("(", Delta," julian day / ", Delta," mean temp)")))) +
   theme_bw(base_size = 18) +
-  scale_x_discrete(labels = c("long \n (genotype source)", "short \n (BA vs WI)", "short \n (CH vs WI)", "short \n (SS vs WI)")) +
+  scale_x_discrete(labels = c("long \n (genotype source)", "short \n (common garden site)")) +
   coord_flip() -> rel_phen_plot
 
 png("figs/prelim_relphenshift.png", height = 6.2, width = 7.3, res = 300, units = "in")

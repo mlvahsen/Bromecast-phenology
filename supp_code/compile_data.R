@@ -10,12 +10,12 @@ source(here("supp_code/climate_of_origin.R"))
 ## Read in Sheep Station data ####
 
 # Read in derived phenology data
-phen_SS <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/SS2022_growthphenology_with_harvest.csv")
+phen_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_growthphenology_with_harvest.csv")
 # Read in plant ID info
-ids_SS <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/SS2022_plantID.csv")
+ids_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_plantID.csv")
 # Read in flagging data
-flags_SS <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/SS2022_flags.csv")
-gardens <- read_csv("~/Documents/Git/Bromecast Data/gardens/rawdata/garden_treatments.csv")
+flags_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_flags.csv")
+gardens <- read_csv("~/Git/Bromecast/gardens/rawdata/garden_treatments.csv")
 # Merge together datasets
 phen_id_SS <- merge(phen_SS, ids_SS)
 
@@ -46,11 +46,11 @@ phen_SS %>%
 
 ## Read in Boise data ####
 # Read in derived phenology data
-phen_Boise <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/Boise2022_growthphenology_by_plantID.csv")
+phen_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_growthphenology_by_plantID.csv")
 # Read in plant ID info
-ids_Boise <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/Boise2022_plantID.csv")
+ids_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_plantID.csv")
 # Read in flagging data
-flags_Boise <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/Boise2022_flags.csv")
+flags_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_flags.csv")
 
 # Merge together datasets
 phen_id_Boise <- merge(phen_Boise, ids_Boise)
@@ -77,11 +77,11 @@ phen_Boise %>%
 
 ## Read in Cheyenne data ####
 # Read in derived phenology data
-phen_CH <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/CH2022_growthphenology_by_plantID.csv")
+phen_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_growthphenology_by_plantID.csv")
 # Read in plant ID info
-ids_CH <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/CH2022_plantID.csv")
+ids_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_plantID.csv")
 # Read in flagging data
-flags_CH <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/CH2022_flags.csv")
+flags_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_flags.csv")
 
 # Merge together datasets
 phen_id_CH <- merge(phen_CH, ids_CH)
@@ -124,7 +124,7 @@ phen_flower %>%
 ## Kinship stuff ####
 
 # Read in data that matches kinship matrix position and genotype ID
-kinshipIDs <- read_csv("~/Documents/Git/Bromecast Data/gardens/rawdata/cg_psuDTF.csv")
+kinshipIDs <- read_csv("~/Git/Bromecast/gardens/rawdata/cg_psuDTF.csv")
 
 kinshipIDs %>% 
   # Two genotypes are currently absent from the kinship matrix
@@ -132,9 +132,11 @@ kinshipIDs %>%
   arrange(kinshipID)-> genotypes_93
 
 # Read in kinship matrix
-setwd("~/Documents/Git/Bromecast Data/gardens/rawdata/")
+setwd("~/Git/Bromecast/gardens/rawdata/")
 kinship93BRTE <- npyLoad("93BRTEcg.kinship.npy")
-setwd("~/Documents/Git/Bromecast Phenology/")
+setwd("~/Git/Bromecast-phenology/")
+
+
 
 # Put genotype numbers on rows and columns
 colnames(kinship93BRTE) <- as.factor(genotypes_93$genotype)

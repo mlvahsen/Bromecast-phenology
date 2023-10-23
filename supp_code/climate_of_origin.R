@@ -8,8 +8,11 @@ library(tidyverse); library(here);
 library(geosphere); library(usmap);
 library(patchwork); library(ggnewscale)
 
+# Set plot theme
+theme_set(theme_bw(base_size = 18))
+
 # Read in bioclimatic data for genotypes (and common garden locations)
-bioclim <- read_csv("~/Documents/Git/Bromecast Data/gardens/deriveddata/BioclimateOfOrigin_AllGenotypes.csv")
+bioclim <- read_csv("~/Git/Bromecast/gardens/deriveddata/BioclimateOfOrigin_AllGenotypes.csv")
 
 ## Run PCA ####
 
@@ -48,15 +51,14 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
   geom_point(data = genotypes_pc, aes(x = lon, y = lat, group = NA, fill = elevation),
              color = "black", shape = 21, size = 3) +
   geom_point(data = cg_pc, aes(x = lon, y = lat, group = NA, shape = site_code),
-             size = 2, color = "dodgerblue", fill = "black", stroke = 1) +
+             size = 4, color = "dodgerblue", stroke = 1) +
   theme_classic(base_size = 14) +
   scale_fill_distiller(palette = "BrBG") +
   labs(fill = "elevation (m)",
        x = "longitude",
        y = "latitude",
        shape = "common garden") +
-  scale_shape_manual(values = 22:25) +
-  ggtitle("(a) elevation")-> elevation
+  scale_shape_manual(values = c(0,5,2,6)) -> elevation
 
 # Plot of PC1 by site for genotypes
 ggplot(data=region, aes(x=long, y=lat, group = group)) +
@@ -67,15 +69,14 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
   geom_point(data = genotypes_pc, aes(x = lon, y = lat, group = NA, fill = PC1),
              color = "black", shape = 21, size = 3) +
   geom_point(data = cg_pc, aes(x = lon, y = lat, group = NA, shape = site_code),
-             size = 2, color = "dodgerblue", fill = "black", stroke = 1) +
-  theme_classic(base_size = 14) +
+             size = 4, color = "dodgerblue", stroke = 1) +
+  theme_classic(base_size = 18) +
   scale_fill_distiller(palette = "PiYG", limits = c(-6.8,6.8)) +
   labs(fill = "PC 1",
        x = "longitude",
        y = "latitude",
        shape = "common garden") +
-  scale_shape_manual(values = 22:25) +
-  ggtitle("(b) PC 1")-> pc1
+  scale_shape_manual(values = c(0,5,2,6))-> pc1
 
 # Plot of PC2 by site for genotypes
 ggplot(data=region, aes(x=long, y=lat, group = group)) +
@@ -86,15 +87,14 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
   geom_point(data = genotypes_pc, aes(x = lon, y = lat, group = NA, fill = PC2),
              color = "black", shape = 21, size = 3) +
   geom_point(data = cg_pc, aes(x = lon, y = lat, group = NA, shape = site_code),
-             size = 2, color = "dodgerblue", fill = "black", stroke = 1) +
-  theme_classic(base_size = 14) +
+             size = 4, color = "dodgerblue", stroke = 1) +
+  theme_classic(base_size = 18) +
   scale_fill_distiller(palette = "PuOr", limits = c(-4.75, 4.15)) +
   labs(fill = "PC 2",
        x = "longitude",
        y = "latitude",
        shape = "common garden") +
-  scale_shape_manual(values = 22:25) +
-  ggtitle("(c) PC 2") -> pc2
+  scale_shape_manual(values = c(0,5,2,6)) -> pc2
 
 # Plot of common garden sites
 cg_pc %>% 
@@ -105,19 +105,18 @@ cg_pc %>%
   new_scale_fill() +
   geom_point(aes(fill = PC2, shape = site_code), size = 6) + 
   scale_fill_distiller(palette = "PuOr", limits = c(-4.75,4.15)) +
-  ylim(600, 2100) + xlim(-120, -102) +
+  ylim(600, 2150) + xlim(-120, -102) +
   scale_shape_manual(values = 22:25) +
   ylab("elevation (m)") +
   xlab("longitude") +
   guides(shape = "none", fill = "none") +
-  annotate(geom = "text", x = -117, y = 980, label = "Wildcat (WI)", size = 5) +
-  annotate(geom = "text", x = -117, y = 1430, label = "Baltzor (BA)", size = 5) +
-  annotate(geom = "text", x = -112, y = 1870, label = "Sheep Station (SS)", size = 5) +
-  annotate(geom = "text", x = -105, y = 2090, label = "Cheyenne (CH)", size = 5) +
-  ggtitle("(d) common gardens")-> cg_pc_plot
+  annotate(geom = "text", x = -117, y = 1010, label = "Wildcat (WI)", size = 4) +
+  annotate(geom = "text", x = -117, y = 1460, label = "Baltzor (BA)", size = 4) +
+  annotate(geom = "text", x = -112, y = 1930, label = "Sheep Station (SS)", size = 4) +
+  annotate(geom = "text", x = -105, y = 2120, label = "Cheyenne (CH)", size = 4)-> cg_pc_plot
 
-png(here("figs/FigSXX_ClimateOrigin.png"), height = 6, width = 10, res = 300, units = "in")
-elevation + pc1 + pc2 +cg_pc_plot + plot_layout(guides = "collect", nrow = 2) & theme(legend.direction = "vertical",
+png(here("figs/Fig1_ClimateOrigin.png"), height = 7, width = 12.3, res = 300, units = "in")
+pc1 + pc2 +cg_pc_plot + plot_layout(guides = "collect") + plot_annotation(tag_levels = "a") & theme(legend.direction = "vertical",
                                                                 legend.box = "horizontal", legend.position = "bottom")
 
 dev.off()
