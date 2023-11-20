@@ -124,34 +124,44 @@ phen_flower %>%
 ## Kinship stuff ####
 
 # Read in data that matches kinship matrix position and genotype ID
-kinshipIDs <- read_csv("~/Git/Bromecast/gardens/rawdata/cg_psuDTF.csv")
+#kinshipIDs <- read_csv("~/Git/Bromecast/gardens/rawdata/cg_psuDTF.csv")
 
-kinshipIDs %>% 
-  # Two genotypes are currently absent from the kinship matrix
-  filter(source != "Adler09" & source != "Shriver01") %>% 
-  arrange(kinshipID)-> genotypes_93
+# Updated kinship matrix
+kinship <- read_table("data/BRTEcg_IBSmatrix.txt", col_names = F) %>% 
+  as.matrix()
 
-# Read in kinship matrix
-setwd("~/Git/Bromecast/gardens/rawdata/")
-kinship93BRTE <- npyLoad("93BRTEcg.kinship.npy")
-setwd("~/Git/Bromecast-phenology/")
-
-
+# Read in info on order of genotypes for kinship matrix
+kinship_order <- read_csv("data/BRTEcg_genotypesCode.csv") %>%
+  arrange(IBSmatrix_order) 
 
 # Put genotype numbers on rows and columns
-colnames(kinship93BRTE) <- as.factor(genotypes_93$genotype)
-rownames(kinship93BRTE) <- as.factor(genotypes_93$genotype)
+rownames(kinship) <- as.factor(kinship_order$genotype)
+colnames(kinship) <- as.factor(kinship_order$genotype)
+
+# kinshipIDs %>% 
+#   # Two genotypes are currently absent from the kinship matrix
+#   filter(source != "Adler09" & source != "Shriver01") %>% 
+#   arrange(kinshipID)-> genotypes_93
+
+# Read in kinship matrix
+# setwd("~/Git/Bromecast/gardens/rawdata/")
+# kinship93BRTE <- npyLoad("93BRTEcg.kinship.npy")
+# setwd("~/Git/Bromecast-phenology/")
+
+# Put genotype numbers on rows and columns
+# colnames(kinship93BRTE) <- as.factor(genotypes_93$genotype)
+# rownames(kinship93BRTE) <- as.factor(genotypes_93$genotype)
 
 # Subset phen data for only genotypes that we have kinship data for
 phen_flower %>% 
-  filter(genotype %in% genotypes_93$genotype) %>% 
-  mutate(genotype = as.factor(genotype))-> phen_flower_kin
+  ungroup() %>% 
+  filter(genotype %in% kinship_order$genotype) %>% 
+  mutate(genotype = factor(genotype))-> phen_flower_kin
 # Right now this only drops 213 plants total
 
 # And vice versa for kinship matrix
-keeps <- which(rownames(kinship93BRTE) %in% unique(phen_flower_kin$genotype))
-
-kinship93BRTE[keeps, keeps] -> kin
+keeps <- which(rownames(kinship) %in% unique(phen_flower_kin$genotype))
+kinship[keeps, keeps] -> kin
 
 # Remove all other intermediate data sets
 rm(list=setdiff(ls(), c("phen_flower_kin", "kin")))

@@ -57,8 +57,6 @@ brms_m1 <- read_rds("~/Desktop/brms_output.rds")
 
 ## Create graphics - Model checking ####
 
-brms_m1 <- read_rds("~/Downloads/brms_output.rds")
-
 # Generate posterior predictive distribution
 ppreds <- posterior_predict(brms_m1, draws = 500)
 # Check against distribution of data, predicted mean, and predicted SD
@@ -331,8 +329,7 @@ predicted_means %>%
 # Get predicted mean jday for each genotype
 predicted_means %>% 
   group_by(genotype) %>% 
-  summarize(mean_jday = mean(jday_pred)) %>% 
-  filter(mean_jday == max(mean_jday) | mean_jday == min(mean_jday)) -> genotype_max_means
+  summarize(mean_jday = mean(jday_pred))  -> genotype_max_means
 
 # Source in air temperature data
 source("supp_code/prism_wrangle.R")
@@ -349,12 +346,41 @@ site_temp %>%
 collect_temp %>% 
   group_by(site_code) %>% 
   group_by(site_code) %>% 
-  summarize(mean = mean(tmean)) %>% 
-  filter(mean == max(mean) | mean == min(mean))-> collect_temp_means
+  summarize(mean = mean(tmean)) -> collect_temp_means
+
+codes <- read_csv("~/Git/Bromecast/gardens/rawdata/sitecode2genotypenumber.csv")
+codes %>% 
+  mutate(genotype = parse_number(genotypeID),
+         site_code = Site.code) -> codes
+
+merge(collect_temp_means, codes) -> collect_temp_means
+
+collect_temp_means %>% filter(genotype %in% genotype_max_means$genotype) -> collect_temp_means_sub
+genotype_max_means %>% filter(genotype %in% collect_temp_means_sub$genotype) -> genotype_means_sub
 
 # Bind together jday and temp data sets
 site_ests <- merge(site_means %>% dplyr::select(site_code = site, mean_jday), site_temp_means)
-collect_ests <- cbind(genotype_max_means, collect_temp_means) %>% dplyr::select(names(site_ests))
+collect_ests <- cbind(genotype_means_sub %>% arrange(genotype), collect_temp_means_sub %>% arrange(genotype)) %>%
+  dplyr::select(names(site_ests))
+
+# Calculate relative phenological difference across collection sites
+# Distance matrix for mean jday for collection site genotypes
+outer(collect_ests$mean_jday, collect_ests$mean_jday, `-`) -> dist_jday
+dist_jday[upper.tri(dist_jday,diag=TRUE)]<-NA
+as.dist(dist_jday) -> dist_jday
+
+# Distance matrix for mean temp for collection site genotypes
+outer(collect_ests$mean, collect_ests$mean, "-") -> dist_tmean
+dist_tmean[upper.tri(dist_tmean,diag=TRUE)]<-NA
+as.dist(dist_tmean) -> dist_tmean
+
+# Calculate phenological sensitivity (jday diffs / temp diffs)
+-as.vector(dist_jday)/as.vector(dist_tmean) -> diffs
+diffs[!is.infinite(diffs)] -> diffs_noInt
+
+# Calculate mean and se
+mean_diffs_collect <- mean(diffs_noInt)
+se_diffs_collect <- sd(diffs_noInt)/sqrt(length(diffs_noInt))
 
 # Calculate relative phenological difference between CG sites and across
 # collection sites
@@ -363,48 +389,37 @@ tibble(jday_diff = c(site_ests$mean_jday[1] - site_ests$mean_jday[4],
                      site_ests$mean_jday[3] - site_ests$mean_jday[4],
                      site_ests$mean_jday[1] - site_ests$mean_jday[2],
                      site_ests$mean_jday[3] - site_ests$mean_jday[2],
-                     site_ests$mean_jday[1] - site_ests$mean_jday[3],
-                     collect_ests$mean_jday[1] - collect_ests$mean_jday[2]),
+                     site_ests$mean_jday[1] - site_ests$mean_jday[3]),
        temp_diff = c(site_ests$mean[4] - site_ests$mean[1],
                      site_ests$mean[4] - site_ests$mean[2],
                      site_ests$mean[4] - site_ests$mean[3],
                      site_ests$mean[1] - site_ests$mean[2],
                      site_ests$mean[3] - site_ests$mean[2],
-                     site_ests$mean[1] - site_ests$mean[3],
-                     collect_ests$mean[2] - collect_ests$mean[1]),
+                     site_ests$mean[1] - site_ests$mean[3]),
        comp = c("short (BA vs WI)", "short (CH vs WI)", "short (SS vs WI)",
-                "short (BA vs CH)", "short (SS vs CH)", "short (BA vs SS)",
-                "long (genotype source)")) %>% 
+                "short (BA vs CH)", "short (SS vs CH)", "short (BA vs SS)")) %>% 
   mutate(rel_shift = jday_diff / temp_diff) -> rel_phen_diffs 
 
 rel_phen_diffs %>% 
-  mutate(cat = ifelse(grepl("short", comp), "short", "long")) %>% 
+  mutate(cat = "short") %>% 
   group_by(cat) %>% 
   summarize(mean = mean(rel_shift),
-            sd = sd(rel_shift, na.rm = T),
-            se = sd/sqrt(n())) %>% 
-  mutate(across(everything(), ~ ifelse(is.na(.), 0, .)))-> rel_phen_diffs_means
+            se = sd(rel_shift)/sqrt(n())) %>% 
+  add_row(cat = "long", mean = mean_diffs_collect, se = se_diffs_collect)-> rel_phen_diffs_means
   
+rel_phen_diffs_means <- tibble(cat = c("short", "long"),
+                               mean = c(6.021697, 2.580261),
+                               se = c(2.597942, 2.104177))
+
 # Create relative phenological difference plot
 rel_phen_diffs_means %>% 
   ggplot(aes(x = cat, y = mean)) +
   geom_point(size = 8) + 
-<<<<<<< HEAD
   geom_segment(aes(x=cat, xend=cat, y=mean + se, yend=mean-se), linewidth = 1) +
   ylim(0,10) +
-  xlab("") + ylab(expression(atop(paste("relative phenological shift "), paste("(", Delta," julian day / ", Delta," mean temp)")))) +
+  xlab("") + ylab(expression(atop(paste("phenological sensitivity "), paste("(", Delta," julian day / ", Delta," mean temp)")))) +
   theme_bw(base_size = 18) +
-  scale_x_discrete(labels = c("long \n (genotype source)", "short \n (common garden site)")) +
-=======
-  geom_segment( aes(x=comp, xend=comp, y=0, yend=rel_shift), linewidth = 1.5) +
-  xlab("") + ylab(expression(atop(paste("phenological sensitivity "), paste("(", Delta," jday / ", Delta," mean temp)")))) +
-  theme_bw(base_size = 18) +
-  scale_x_discrete(labels = c("climate of origin \n (genotypic variation)",
-                              "environment \n (BA vs WI)",
-                              "environment \n (CH vs WI)",
-                              "environment \n (SS vs WI)")) +
->>>>>>> ab2c13a2a8a723af2beded347ac8796991f0c4c2
-  coord_flip() -> rel_phen_plot
+  scale_x_discrete(labels = c("climate of origin \n (genotypic variation)", "current environment \n (common garden site)")) -> rel_phen_plot
 
 png("figs/Fig4_PhenSens.png", height = 6.2, width = 7.3, res = 300, units = "in")
 rel_phen_plot
