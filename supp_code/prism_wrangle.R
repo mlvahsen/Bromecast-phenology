@@ -16,33 +16,33 @@ prism_set_dl_dir("data/")
 ## Common garden site information ####
 
 # Download mean temperature data for 2022
-# get_prism_dailys(type = "tmean",
-#                  minDate = "2021-10-01",
-#                  maxDate = "2022-07-01",
-#                  keepZip = F)
+get_prism_dailys(type = "tmax",
+                 minDate = "2021-10-01",
+                 maxDate = "2022-07-01",
+                 keepZip = F)
 
-# Get tmax values for all 
-to_slice <- prism_archive_subset("tmean", "daily", minDate="2021-10-01", maxDate = "2022-07-01")
+# Get tmean values for all 
+to_slice <- prism_archive_subset("tmean", "daily", minDate="2021-10-01", maxDate = "2022-06-30")
 stacked <- pd_stack(to_slice)
 proj4string(stacked) <- CRS("+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
 df <- data.frame(rasterToPoints(stacked))
-colnames(df) <- c("x", "y",1:274)
+colnames(df) <- c("x", "y",1:273)
 
 # Get gps of just cg sites
 gps_sites <- gps %>% filter(site_code %in% c("SS", "BA", "WI", "CH"))
 
 # Get closest prism point to each GPS point
-store <- matrix(NA, nrow = nrow(gps_sites), ncol = 274)
+store <- matrix(NA, nrow = nrow(gps_sites), ncol = 273)
 
 for(i in 1:nrow(gps_sites)){
   out <- distm(gps_sites[i,c("lon", "lat")], df[,c("x", "y")], fun = distHaversine)
-  store[i,] <- as.numeric(df[which.min(out),3:276])
+  store[i,] <- as.numeric(df[which.min(out),3:275])
 }
 
 # Match up prism data back to gps data frame
 cbind(gps_sites, store) %>%
-  gather(key = day, value = tmean, `1`:`274`) %>% 
-  #mutate(tmean = ifelse(tmean < 0, 0, tmean)) %>% 
+  gather(key = day, value = tmean, `1`:`273`) %>% 
+  mutate(tmean = ifelse(tmean < 0, 0, tmean)) %>% 
   mutate(day = as.numeric(day)) -> site_temp
 
 # Set site colors
@@ -55,11 +55,9 @@ site_temp %>%
   scale_color_manual(values = colors[c(2,4,1,3)])
 
 # Create histograms of mean temp by site
-
-
 site_temp %>%
-  #mutate(tmean = case_when(tmean < 0 ~ 0,
-   #                        T ~ tmean)) %>%
+  mutate(tmean = case_when(tmean < 0 ~ 0,
+                          T ~ tmean)) %>%
   ggplot(aes(x = tmean, fill = site_code, color = site_code)) +
   geom_density(alpha = 0, linewidth = 2) +
   scale_color_manual(values = colors[c(2,4,1,3)]) +
@@ -74,15 +72,18 @@ site_temp %>%
             median_temp = median(tmean),
             # Or calculate growing degree days (this creates the same
             # relationships as means)
-            gdd = sum(tmean))
+            gdd = sum(tmean)) -> site_temp_summary
+
+write_csv(site_temp_summary, "~/Desktop/site_tmean.csv")
+
 
 # Download mean temperature data for 2022
-# get_prism_monthlys(type = "tmean",
+# get_prism_monthlys(type = "tmax",
 #                  year = 2021,
 #                  mon = 10:12,
 #                  keepZip = F)
 # 
-# get_prism_monthlys(type = "tmean",
+# get_prism_monthlys(type = "tmax",
 #                    year = 2022,
 #                    mon = 1:6,
 #                    keepZip = F)
@@ -131,11 +132,11 @@ site_temp %>%
 
 ## Collection site information ####
 
-# Download mean temperature data for 2022
-# get_prism_normals(type="tmean",
-#                   resolution = "4km",
-#                   mon = c(1:6, 10:12),
-#                   keepZip = FALSE)
+# Download max temperature data for climate normals
+get_prism_normals(type="tmax",
+                  resolution = "4km",
+                  mon = c(1:6),
+                  keepZip = FALSE)
 
 `%notin%` <- Negate(`%in%`)
 
@@ -147,24 +148,38 @@ to_slice <- prism_archive_subset("tmean", "monthly normals", resolution = "4km")
 stacked <- pd_stack(to_slice)
 proj4string(stacked) <- CRS("+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
 df <- data.frame(rasterToPoints(stacked))
-colnames(df) <- c("x", "y",c(1:6, 10:12))
+colnames(df) <- c("x", "y",c(1:6))
 
 # Get closest prism point to each GPS point
-store_collect <- matrix(NA, nrow = nrow(gps_collect), ncol = 9)
+store_collect <- matrix(NA, nrow = nrow(gps_collect), ncol = 6)
 
 for(i in 1:nrow(gps_collect)){
   out <- distm(gps_collect[i,c("lon", "lat")], df[,c("x", "y")], fun = distHaversine)
-  store_collect[i,] <- as.numeric(df[which.min(out),3:11])
+  store_collect[i,] <- as.numeric(df[which.min(out),3:8])
 }
 
 # Match up prism data back to gps data frame
 cbind(gps_collect, store_collect) %>% 
-  gather(key = day, value = tmean, `1`:`9`) %>% 
+  gather(key = month, value = tmean, `1`:`6`) %>% 
   # Set any temps lower than 0 to be 0
   mutate(tmean = ifelse(tmean < 0, 0, tmean)) %>%
   # Drop observations in Canada
   filter(lat < 48) %>% 
-  mutate(day = as.numeric(day)) -> collect_temp
+  mutate(month = as.numeric(month)) -> collect_temp
+
+collect_temp %>% 
+  #filter(month < 5) %>% 
+  group_by(lat, lon, site_code) %>% 
+  summarize(tmax_mean = mean(tmean)) %>% 
+  ggplot(aes(x = lon, y = lat, color = tmax_mean)) +
+  geom_point(size = 3) +
+  scale_color_distiller()
+
+collect_temp %>% 
+  group_by(lat, lon, site_code) %>% 
+  summarize(tmean_mean = mean(tmean)) -> collect_temp_sum
+
+write_csv(collect_temp_sum, "~/Desktop/genotype_tmean_norms.csv")
 
 # collect_temp %>% 
 #   filter(lat < 48) %>% 

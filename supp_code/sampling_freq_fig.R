@@ -122,7 +122,7 @@ phen %>% filter(site == "WI" & jday > 50) %>% pull(jday) %>% range(na.rm = T)
 phen %>% filter(site == "BA" & jday > 50) %>% pull(jday) %>% range(na.rm = T)
 phen %>% filter(site == "CH" & jday > 50) %>% pull(jday) %>% range(na.rm = T)
 
-colors <- c("#88CCEE", "#AA4499", "#DDCC77", "#44AA99")
+colors <- c("#D55E00", "#009E73", "#CC79A7", "#0072B2")
 
 phen %>% 
   group_by(jday, site) %>% 
@@ -152,7 +152,8 @@ phen %>%
   theme(legend.position = "none",
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
-        axis.line.y = element_blank()) -> sampling_timeline
+        axis.line.y = element_blank()) +
+  xlab("Day of year")-> sampling_timeline
 
 png("figs/prelim_sampling_freq.png", height = 4, width = 6.6, units = "in", res = 300)
 sampling_timeline

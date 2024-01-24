@@ -2,7 +2,7 @@
 
 ## Load libraries ####
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
-library(here); library(readr); library(brms); library(RcppCNPy)
+library(here); library(readr); library(brms); library(RcppCNPy); library(mbend)
 
 ## Source code for genotype climate of origin ####
 source(here("supp_code/climate_of_origin.R"))
@@ -124,19 +124,25 @@ phen_flower %>%
 ## Kinship stuff ####
 
 # Read in data that matches kinship matrix position and genotype ID
-#kinshipIDs <- read_csv("~/Git/Bromecast/gardens/rawdata/cg_psuDTF.csv")
+kinshipIDs <- read_csv("data/93cg_genotypes.csv")
+# Arrange by kinship order
+kinshipIDs %>% 
+  arrange(kinshipID) -> kinshipIDs
 
-# Updated kinship matrix
-kinship <- read_table("data/BRTEcg_IBSmatrix.txt", col_names = F) %>% 
-  as.matrix()
+# Read in kinship matrix
+kinship <- npyLoad("data/93BRTEcg.kinship.npy")
+#kinship_og <- npyLoad("data/93BRTEcg.kinship_og.npy")
+
+#corrplot::corrplot(cor(kinship))
+#corrplot::corrplot(cor(kinship_og))
 
 # Read in info on order of genotypes for kinship matrix
-kinship_order <- read_csv("data/BRTEcg_genotypesCode.csv") %>%
-  arrange(IBSmatrix_order) 
+# kinship_order <- read_csv("data/BRTEcg_genotypesCode.csv") %>%
+#   arrange(IBSmatrix_order) 
 
 # Put genotype numbers on rows and columns
-rownames(kinship) <- as.factor(kinship_order$genotype)
-colnames(kinship) <- as.factor(kinship_order$genotype)
+rownames(kinship) <- as.factor(kinshipIDs$genotype)
+colnames(kinship) <- as.factor(kinshipIDs$genotype)
 
 # kinshipIDs %>% 
 #   # Two genotypes are currently absent from the kinship matrix
@@ -155,13 +161,17 @@ colnames(kinship) <- as.factor(kinship_order$genotype)
 # Subset phen data for only genotypes that we have kinship data for
 phen_flower %>% 
   ungroup() %>% 
-  filter(genotype %in% kinship_order$genotype) %>% 
+  filter(genotype %in% kinshipIDs$genotype) %>% 
+  filter(genotype %in% rownames(kinship)) %>% 
   mutate(genotype = factor(genotype))-> phen_flower_kin
 # Right now this only drops 213 plants total
 
 # And vice versa for kinship matrix
 keeps <- which(rownames(kinship) %in% unique(phen_flower_kin$genotype))
 kinship[keeps, keeps] -> kin
+
+# Force kinship matrix to be positive definite for phenology analyses
+kin <- as.matrix(mbend::bend(kin)$bent)
 
 # Remove all other intermediate data sets
 rm(list=setdiff(ls(), c("phen_flower_kin", "kin")))
