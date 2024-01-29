@@ -87,7 +87,7 @@ brms_lin <- brm(
 )
 
 # write_rds(brms_m1, "~/Desktop/phenology_final_mod.rds")
-brms_m1 <- read_rds("~/Desktop/phenology_final_mod.rds")
+brms_m1 <- read_rds("~/Desktop/brms_linear.rds")
 
 end <- Sys.time()
 

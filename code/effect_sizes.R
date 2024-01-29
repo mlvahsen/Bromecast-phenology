@@ -10,15 +10,15 @@ sd_pc2 <- attr(scale(phen_flower_kin$pc2),"scaled:scale")
 
 # effect of gravel
 quantile(obj$b_gravel1, c(0.5, 0.025, 0.975))
-quantile(exp(obj$b_Intercept - obj$b_gravel1) - exp(obj$b_Intercept + obj$b_gravel1), c(0.5, 0.025, 0.975))
+quantile((obj$b_Intercept - obj$b_gravel1) - (obj$b_Intercept + obj$b_gravel1), c(0.5, 0.025, 0.975))
 # effect of density
 quantile(obj$b_density1, c(0.5, 0.025, 0.975))
-quantile(exp(obj$b_Intercept - obj$b_density1) - exp(obj$b_Intercept + obj$b_density1), c(0.5, 0.025, 0.975))
+quantile((obj$b_Intercept - obj$b_density1) - (obj$b_Intercept + obj$b_density1), c(0.5, 0.025, 0.975))
 # effect of density:gravel
 quantile(obj$`b_density1:gravel1`, c(0.5, 0.025, 0.975))
 # effect of site
 quantile(obj$b_site3, c(0.5, 0.025, 0.975))
-quantile(exp(obj$b_Intercept + obj$b_site2) - exp(obj$b_Intercept + obj$b_site3), c(0.5, 0.025, 0.975))
+quantile((obj$b_Intercept + obj$b_site2) - (obj$b_Intercept + obj$b_site3), c(0.5, 0.025, 0.975))
 # effect of pc1
 quantile(obj$b_pc1_sc, c(0.5, 0.025, 0.975))
 # effect of pc2
@@ -27,12 +27,15 @@ quantile(obj$b_pc2_sc, c(0.5, 0.025, 0.975))
 quantile(obj$`b_density1:gravel1:pc1_sc`, c(0.5, 0.025, 0.975))
 # effect of genotype
 quantile(obj$sd_genotype__Intercept, c(0.5, 0.025, 0.975))
-# biggest effect of genotype
-exp(obj$b_Intercept + obj$`r_genotype[34,Intercept]` + obj$b_pc1_sc*0.700233  + obj$b_pc2_sc*-0.1474011) -> earliest
-exp(obj$b_Intercept + obj$`r_genotype[48,Intercept]` + obj$b_pc1_sc*-0.04574092 + obj$b_pc2_sc*1.048184) -> latest
-quantile(latest - earliest, c(0.5, 0.025, 0.975))
+# biggest effect of genotype (earliest  = genotype 64; latest = genotype 6)
+genotype64_pc1_sc <- unique(phen_flower_kin %>% filter(genotype == 64) %>% pull(pc1_sc))
+genotype64_pc2_sc <- unique(phen_flower_kin %>% filter(genotype == 64) %>% pull(pc2_sc))
+(obj$b_Intercept + obj$`r_genotype[64,Intercept]` + obj$b_pc1_sc*genotype64_pc1_sc  + obj$b_pc2_sc*genotype64_pc2_sc) -> earliest
 
-quantile(exp(obj$b_Intercept + obj$b_site.BAMintercept) - exp(obj$b_Intercept + obj$b_site.WIMintercept), c(0.5, 0.025, 0.975))
+genotype6_pc1_sc <- unique(phen_flower_kin %>% filter(genotype == 6) %>% pull(pc1_sc))
+genotype6_pc2_sc <- unique(phen_flower_kin %>% filter(genotype == 6) %>% pull(pc2_sc))
+(obj$b_Intercept + obj$`r_genotype[6,Intercept]` + obj$b_pc1_sc*genotype6_pc1_sc + obj$b_pc2_sc*genotype6_pc2_sc) -> latest
+quantile(latest - earliest, c(0.5, 0.025, 0.975))
 
 # Supplemental plot showing interactions between PC 1 x site and PC 2 x site
 site_pc1 <- sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc1_sc", "site"))
