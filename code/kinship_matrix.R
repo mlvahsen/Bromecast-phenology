@@ -77,7 +77,7 @@ brms_NB <- brm(
 brms_lin <- brm(
   jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
     site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
-    (1 | plot_unique),
+    (1 | plot_unique) + (1|block_unique),
   data = phen_flower_kin,
   data2 = list(Amat = kin),
   family = gaussian(),
@@ -86,7 +86,7 @@ brms_lin <- brm(
   seed = 4685
 )
 
-# write_rds(brms_m1, "~/Desktop/phenology_final_mod.rds")
+write_rds(brms_lin, "~/Desktop/phenology_linear.rds")
 brms_m1 <- read_rds("~/Desktop/brms_linear.rds")
 
 end <- Sys.time()
@@ -119,7 +119,7 @@ tibble(predicted = colMeans(ppreds),
   geom_point(size = 3, alpha = 0.5) +
   geom_abline(aes(intercept = 0, slope = 1), linewidth = 2, color = "dodgerblue") +
   ylim(108, 210) + xlim(108, 210) +
-  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 115, y = 210, size = 7) +
+  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 120, y = 210, size = 7) +
   labs(x = "Predicted", y = "Observed") -> pred_obs
 
 png("figs/FigS2_modelperform.png", height = 5.1, width = 5.75, res = 300, units = "in")

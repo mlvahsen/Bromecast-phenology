@@ -83,22 +83,23 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
 
 # Plot of common garden sites
 cg_pc %>%
-  ggplot(aes(x = lon, y = elevation, fill = PC1, shape = site_code)) +
-  geom_point(size = 15) +
+  ggplot(aes(x = lon, y = elevation)) +
+  geom_point(size = 15, aes(fill = PC1, shape = site_code)) +
   scale_fill_distiller(palette = "PiYG", limits = c(-7,7)) +
   guides(fill = "none") +
   new_scale_fill() +
   geom_point(aes(fill = PC2, shape = site_code), size = 6) +
   scale_fill_distiller(palette = "PuOr", limits = c(-5,5)) +
-  ylim(600, 2150) + xlim(-120, -102) +
+  ylim(120, 2406) + xlim(-121, -101) +
   scale_shape_manual(values = 22:25) +
   ylab("Elevation (m)") +
   xlab("Longitude") +
   guides(shape = "none", fill = "none") +
-  annotate(geom = "text", x = -117, y = 980, label = "Wildcat (WI)", size = 5) +
-  annotate(geom = "text", x = -117, y = 1430, label = "Baltzor (BA)", size = 5) +
-  annotate(geom = "text", x = -112, y = 1870, label = "Sheep Station (SS)", size = 5) +
-  annotate(geom = "text", x = -105, y = 2090, label = "Cheyenne (CH)", size = 5) +
+  geom_point(data = genotypes_pc, aes(x = lon, y = elevation), alpha = 0.2) +
+  annotate(geom = "text", x = -117, y = 1030, label = "Wildcat (WI)", size = 5) +
+  annotate(geom = "text", x = -117, y = 1480, label = "Baltzor (BA)", size = 5) +
+  annotate(geom = "text", x = -112, y = 1960, label = "Sheep Station (SS)", size = 5) +
+  annotate(geom = "text", x = -105, y = 2140, label = "Cheyenne (CH)", size = 5) +
   geom_curve(aes(x = -110.5, y = 1480, xend = -112.2, yend = 1680), linewidth = 0.3,
              color = "gray37", arrow = arrow(length = unit(0.08, "inches")), curvature = -0.3) +
   geom_curve(aes(x = -108, y = 1620, xend = -111.6, yend = 1670), linewidth = 0.3, curvature = 0.3,
