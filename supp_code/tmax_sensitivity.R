@@ -130,6 +130,16 @@ mod <- lm(jday ~ tmax * type, data = climate_sens)
 summary(mod)
 confint(mod)
 
+# Slope of local adaptation is the slope coefficient
+coef(mod)[2]
+# -1.047707
+# One degree increase in temp means an additional day earlier
+
+# Slope of plasticity is the slope coefficient plus interaction term
+coef(mod)[2] + coef(mod)[4]
+# -5.972538 
+# One degree increase in temp means an additional 6 days earlier
+
 text_x2 <- grid::textGrob("Avg. maximum temperature Jan - April 1981-2010 (°C)",
                           gp=gpar(fontsize=14, fontface="bold", col = "#2c7bb6"))
 
