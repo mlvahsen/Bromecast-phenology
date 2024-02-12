@@ -102,7 +102,7 @@ cg_pc %>%
   annotate(geom = "text", x = -105, y = 2140, label = "Cheyenne (CH)", size = 5) +
   geom_curve(aes(x = -110.5, y = 1480, xend = -112.2, yend = 1680), linewidth = 0.3,
              color = "gray37", arrow = arrow(length = unit(0.08, "inches")), curvature = -0.3) +
-  geom_curve(aes(x = -108, y = 1620, xend = -111.6, yend = 1670), linewidth = 0.3, curvature = 0.3,
+  geom_curve(aes(x = -108, y = 1620, xend = -111.4, yend = 1670), linewidth = 0.3, curvature = 0.3,
              color = "gray37", arrow = arrow(length = unit(0.08, "inches"))) +
   geom_text(aes(x = -108, y = 1480), label = "PC 2 value", fontface = "italic", color = "gray37") +
   geom_text(aes(x = -105.8, y = 1610), label = "PC 1 value", fontface = "italic", color = "gray37") +

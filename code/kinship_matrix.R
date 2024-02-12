@@ -8,6 +8,8 @@ library(patchwork); library(bayesplot); library(usmap); library(egg)
 # Source in compiled data for the model
 source(here("supp_code", "compile_data.R"))
 
+phen_flower_kin %>% filter(is.na(resurrection_date)) -> phen_flower_kin
+
 # Center and scale continuous variables
 phen_flower_kin$pc1_sc <- scale(phen_flower_kin$pc1)[,1]
 phen_flower_kin$pc2_sc <- scale(phen_flower_kin$pc2)[,1]
@@ -137,27 +139,36 @@ pc2_plot <- sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc2_sc", "densi
 site_plot <- sjPlot::plot_model(brms_m1, type = "emm", terms = c("site"))
 
 tibble(jday = site_plot$data$predicted,
-       site = c("Sheep Station (SS)", "Cheyenne (CH)",
-                "Wildcat (WI)", "Baltzor (BA)"),
+       site = c("cold\naseasonal (SS)", "cool\nseasonal (CH)",
+                "hot\nseasonal (WI)", "cool\naseasonal (BA)"),
        lower = site_plot$data$conf.low,
-       upper = site_plot$data$conf.high) -> sum_stat_site
+       upper = site_plot$data$conf.high) %>% 
+  mutate(site = factor(site, levels = c("cold\naseasonal (SS)",
+                                        "cool\nseasonal (CH)",
+                                        "cool\naseasonal (BA)",
+                                        "hot\nseasonal (WI)")))-> sum_stat_site
 
 phen_flower_kin %>% 
-  mutate(site = case_when(site == "SS" ~ "Sheep Station (SS)",
-                          site == "CH" ~ "Cheyenne (CH)",
-                          site == "WI" ~ "Wildcat (WI)",
-                          site == "BA" ~ "Baltzor (BA)")) %>% 
+  mutate(site = case_when(site == "SS" ~ "cold\naseasonal (SS)",
+                          site == "CH" ~ "cool\nseasonal (CH)",
+                          site == "WI" ~ "hot\nseasonal (WI)",
+                          site == "BA" ~ "cool\naseasonal (BA)")) %>% 
+  mutate(site = factor(site, levels = c("cold\naseasonal (SS)",
+                                        "cool\nseasonal (CH)",
+                                        "cool\naseasonal (BA)",
+                                        "hot\nseasonal (WI)"))) %>% 
   ggplot(aes(x = site, y = jday)) +
   geom_jitter(height = 0, width = 0.3, aes(shape = site, color = site), size = 3, alpha = 0.1) +
   geom_segment(data = sum_stat_site, aes(x = site, y = lower, yend = upper, xend = site),
-                  linewidth = 1) +
-  geom_point(data = sum_stat_site, aes(x = site, y = jday, shape = site, fill= site),
-             size = 2.5) +
+                  linewidth = 0.5) +
+  geom_segment(data = sum_stat_site, aes(x = c(0.9, 1.9, 3.9, 2.9), y = jday,
+                                         yend = jday, xend = c(1.1, 2.1, 4.1, 3.1)),
+             size = 0.5) +
   labs("") +
   scale_shape_manual(values = 22:25) +
-  labs(y = "Day of year",
-       x = "Site") +
-  theme(legend.position = "none", axis.text.x =element_text(angle = 20, hjust = 1)) +
+  labs(y = "First day of flowering",
+       x = "Site\n(cool & wet → hot & dry)") +
+  theme(legend.position = "none") +
   scale_color_manual(values = c("#009E73","#0072B2", "#D55E00", "#CC79A7")) +
   scale_fill_manual(values = c("#009E73","#0072B2", "#D55E00", "#CC79A7")) -> site_subplot
 
@@ -169,57 +180,96 @@ phen_flower_kin_plot <- phen_flower_kin %>%
                                  site == "WI" ~ "Wildcat (WI)",
                                  site == "BA" ~ "Baltzor (BA)"))
 
-tibble(pc1 = pc1_plot$data$x * sd_pc1 + mean_pc1,
+tibble(pc = pc1_plot$data$x * sd_pc1 + mean_pc1,
        jday = pc1_plot$data$predicted,
        lower = pc1_plot$data$conf.low,
        upper = pc1_plot$data$conf.high,
        gravel = pc1_plot$data$facet,
        density = pc1_plot$data$group) %>% 
   mutate(gravel = ifelse(gravel == "white", "White gravel", "Black gravel"),
-         density = ifelse(density == "hi", "High", "Low")) %>% 
-  ggplot(aes(x = pc1, y = jday, color = density)) +
-  geom_point(data = phen_flower_kin_plot, aes(x = pc1, y = jday, color = density),
-             shape = 1, alpha = 0.1) +
-  geom_line(aes(linetype = density), linewidth = 1.2) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = density), alpha = 0.4, color = NA) +
-  facet_wrap(~gravel) +
-  labs(x = "PC 1 (cool & wet → hot & dry)",
-       y = "Day of year",
-       color = "Density",
-       fill = "Density",
-       linetype = "Density") +
-  scale_color_manual(values = c("gray47", "maroon")) +
-  scale_fill_manual(values = c("gray47", "maroon")) -> pc1_subplot
-  
-tibble(pc2 = pc2_plot$data$x * sd_pc2 + mean_pc2,
+         density = ifelse(density == "hi", "High", "Low"),
+         pc_type = "PC 1 (cool & wet → hot & dry)") -> pc1_dat
+
+tibble(pc = pc2_plot$data$x * sd_pc2 + mean_pc2,
        jday = pc2_plot$data$predicted,
        lower = pc2_plot$data$conf.low,
        upper = pc2_plot$data$conf.high,
        gravel = pc2_plot$data$facet,
        density = pc2_plot$data$group) %>% 
   mutate(gravel = ifelse(gravel == "white", "White gravel", "Black gravel"),
-         density = ifelse(density == "hi", "High", "Low")) %>% 
-  ggplot(aes(x = pc2, y = jday, color = density)) +
-  geom_point(data = phen_flower_kin_plot, aes(x = pc2, y = jday, color = density),
-             shape = 1, alpha = 0.1) +
-  geom_line(aes(linetype = density), linewidth = 1.2) +
+         density = ifelse(density == "hi", "High", "Low"),
+         pc_type = "PC 2 (low → high seasonality)") -> pc2_dat
+
+rbind(pc1_dat, pc2_dat) %>% 
+  ggplot(aes(pc, jday, color = density, fill = density)) +
+  geom_line(aes(linetype = density), linewidth = 0.8) +
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = density), alpha = 0.4, color = NA) +
-  facet_wrap(~gravel) +
-  labs(x = "PC 2 (low → high seasonality)",
-       y = "Day of year",
+  facet_grid(gravel ~ pc_type, scales = "free_x") +
+  labs(x = "Source climate PC axis value",
+       y = "First day of flowering",
        color = "Density",
        fill = "Density",
        linetype = "Density") +
   scale_color_manual(values = c("gray47", "maroon")) +
   scale_fill_manual(values = c("gray47", "maroon")) +
-  theme(axis.title.x = element_text(margin = margin(t = -24, unit = "pt")))-> pc2_subplot
+  theme(legend.position = "top") -> pc_subplot
 
+# tibble(pc1 = pc1_plot$data$x * sd_pc1 + mean_pc1,
+#        jday = pc1_plot$data$predicted,
+#        lower = pc1_plot$data$conf.low,
+#        upper = pc1_plot$data$conf.high,
+#        gravel = pc1_plot$data$facet,
+#        density = pc1_plot$data$group) %>% 
+#   mutate(gravel = ifelse(gravel == "white", "White gravel", "Black gravel"),
+#          density = ifelse(density == "hi", "High", "Low")) %>% 
+#   ggplot(aes(x = pc1, y = jday, color = density)) +
+#   geom_point(data = phen_flower_kin_plot, aes(x = pc1, y = jday, color = density),
+#              shape = 1, alpha = 0.1) +
+#   geom_line(aes(linetype = density), linewidth = 1.2) +
+#   geom_ribbon(aes(ymin = lower, ymax = upper, fill = density), alpha = 0.4, color = NA) +
+#   facet_wrap(~gravel, nrow = 2) +
+#   labs(x = "PC 1 (cool & wet → hot & dry)",
+#        y = "Day of year",
+#        color = "Density",
+#        fill = "Density",
+#        linetype = "Density") +
+#   scale_color_manual(values = c("gray47", "maroon")) +
+#   scale_fill_manual(values = c("gray47", "maroon")) -> pc1_subplot
 
-png("figs/Fig2_int.png", height = 7, width = 12, res = 300, units = "in")
-site_subplot + (pc1_subplot / pc2_subplot) + plot_annotation(tag_levels = "a", tag_prefix = "(",
+# tibble(pc2 = pc2_plot$data$x * sd_pc2 + mean_pc2,
+#        jday = pc2_plot$data$predicted,
+#        lower = pc2_plot$data$conf.low,
+#        upper = pc2_plot$data$conf.high,
+#        gravel = pc2_plot$data$facet,
+#        density = pc2_plot$data$group) %>% 
+#   mutate(gravel = ifelse(gravel == "white", "White gravel", "Black gravel"),
+#          density = ifelse(density == "hi", "High", "Low")) %>% 
+#   ggplot(aes(x = pc2, y = jday, color = density)) +
+#   geom_point(data = phen_flower_kin_plot, aes(x = pc2, y = jday, color = density),
+#              shape = 1, alpha = 0.1) +
+#   geom_line(aes(linetype = density), linewidth = 1.2) +
+#   geom_ribbon(aes(ymin = lower, ymax = upper, fill = density), alpha = 0.4, color = NA) +
+#   facet_wrap(~gravel, nrow = 2) +
+#   labs(x = "PC 2 (low → high seasonality)",
+#        y = "Day of year",
+#        color = "Density",
+#        fill = "Density",
+#        linetype = "Density") +
+#   scale_color_manual(values = c("gray47", "maroon")) +
+#   scale_fill_manual(values = c("gray47", "maroon")) +
+#   theme(axis.title.x = element_text(margin = margin(t = -24, unit = "pt")))-> pc2_subplot
+
+png("figs/Fig2_int.png", height = 9.5, width = 7.8, res = 300, units = "in")
+site_subplot + pc_subplot + plot_annotation(tag_levels = "a", tag_prefix = "(",
                                             tag_suffix = ")") +
-  plot_layout(guides = "collect", widths = c(1,2))
+  plot_layout(heights = c(1,2)) 
 dev.off()
+
+# png("figs/Fig2_int.png", height = 7, width = 12, res = 300, units = "in")
+# site_subplot + (pc1_subplot / pc2_subplot) + plot_annotation(tag_levels = "a", tag_prefix = "(",
+#                                             tag_suffix = ")") +
+#   plot_layout(guides = "collect", widths = c(1,2))
+# dev.off()
 
 # Create Fig S4 - density x gravel interaction across sites
 pred_dat_int2 <- sjPlot::plot_model(brms_m1, terms = c("density", "gravel", "site"), type = "emm")
