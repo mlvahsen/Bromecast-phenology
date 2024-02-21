@@ -52,43 +52,37 @@ start <- Sys.time()
 # Fit with summed contrasts to more easily infer global means
 options(contrasts = c("contr.sum", "contr.poly"))
 
-brms_m1 <- brm(
-  jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
-    site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
-    (1 | block_unique) + (1 | plot_unique),
-  data = phen_flower_kin,
-  data2 = list(Amat = kin),
-  family = poisson(link = "log"),
-  chains = 3, cores = 1, iter = 15000,
-  # Set seed for reproducibility
-  seed = 1234
-)
-
-brms_NB <- brm(
-  jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
-    site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
-    (1 | block_unique) + (1 | plot_unique),
-  data = phen_flower_kin,
-  data2 = list(Amat = kin),
-  family = negbinomial(link = "log", link_shape = "log"),
-  chains = 1, cores = 1, iter = 1000,
-  # Set seed for reproducibility
-  seed = 1234
-)
-
 brms_lin <- brm(
   jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
-    site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
+    site * pc1_sc + site * pc2_sc +
+    density * gravel * site + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
     (1 | plot_unique) + (1|block_unique),
   data = phen_flower_kin,
   data2 = list(Amat = kin),
   family = gaussian(),
-  chains = 1, cores = 1, iter = 5000,
+  chains = 3, cores = 1, iter = 7500,
   # Set seed for reproducibility
   seed = 4685
 )
 
-write_rds(brms_lin, "~/Desktop/phenology_linear.rds")
+brms_lin_nokin <- brm(
+  jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
+    site * pc1_sc + site * pc2_sc +
+    density * gravel * site + (1 + density + gravel + site || genotype) +
+    (1 | plot_unique) + (1|block_unique),
+  data = phen_flower_kin,
+  data2 = list(Amat = kin),
+  family = gaussian(),
+  chains = 3, cores = 1, iter = 7500,
+  # Set seed for reproducibility
+  seed = 4685
+)
+
+# These are about the same so stick with the standard one
+
+write_rds(brms_lin, "~/Desktop/phenology_kin_final.rds")
+write_rds(brms_lin_nokin, "~/Desktop/phenology_nokin_final.rds")
+
 brms_m1 <- read_rds("~/Desktop/brms_linear.rds")
 
 end <- Sys.time()
@@ -459,12 +453,13 @@ phen_flower_kin$site <- factor(phen_flower_kin$site, levels = c("CH", "WI", "SS"
 
 brms_lin_CHlevel <- brm(
   jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
-    site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
+    site * pc1_sc + site * pc2_sc +
+    site * gravel * density + (1 + density + gravel + site || genotype) +
     (1 | plot_unique),
   data = phen_flower_kin,
   data2 = list(Amat = kin),
   family = gaussian(),
-  chains = 1, cores = 1, iter = 5000,
+  chains = 1, cores = 1, iter = 1000,
   # Set seed for reproducibility
   seed = 4685
 )
@@ -499,7 +494,7 @@ cbind(genotype = random_intercepts$genotype, white = white_genotype, black = bla
   ggplot(aes(x = gravel, y = jday, group = genotype)) + 
   geom_point(size = 3, pch = 21, alpha = 0.5, fill = "black") +
   geom_line(alpha = 0.5) +
-  ylim(135, 175) +
+  #ylim(135, 175) +
   labs(y = "Day of year", x = "Gravel") -> gravel_gxe
 
 # Density gxe plot
@@ -510,7 +505,7 @@ cbind(genotype = random_intercepts$genotype, high = high_genotype, low = low_gen
   ggplot(aes(x = density, y = jday, group = genotype)) + 
   geom_point(size = 3, pch = 21, alpha = 0.5, fill = "black") +
   geom_line(alpha = 0.5) +
-  ylim(135, 175) +
+  #ylim(135, 175) +
   labs(y = "Day of year", x = "Density")-> density_gxe 
 
 # Site gxe plot

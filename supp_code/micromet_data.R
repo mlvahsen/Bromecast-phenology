@@ -6,15 +6,13 @@ temp <- read_csv("data/BCtemploggers.csv")
 theme_set(theme_bw(base_size = 16))
 
 temp %>%
-  filter(Site == "Cheyenne" & Date < "2022-05-06") -> Cheyenne
-temp %>% 
-  filter(Site == "Wildcat" & Date > "2021-09-30" & Date < "2022-07-24") -> Wildcat
-temp %>% 
-  filter(Site == "Balzor" & Date < "2022-07-04") -> Baltzor
-temp %>% 
-  filter(Site == "Sheep" & Date < "2022-07-24" & Date > "2021-11-18") -> Sheep
+  filter(Site == "Balzor" & Color == "Black") %>% 
+  arrange(Date) %>% 
+  print(n = Inf)
+# Baltzor data on black gravel goes until Jun-22
 
-clean_dat <- rbind(Cheyenne, Wildcat, Baltzor, Sheep)
+# Cut all data to be between Jan-1 and Jun-22
+clean_dat <- temp %>% filter(Date >= "2022-01-01" & Date <= "2022-06-22")
 
 clean_dat %>% 
   mutate(Site = case_when(Site == "Balzor" ~ "Baltzor",
@@ -30,6 +28,7 @@ soil05
 dev.off()
 
 clean_dat %>% 
+  select(Site, Date, Color, Temp_C) %>% 
   spread(key = Color, value = Temp_C) %>% 
   mutate(Diff = Black - White) %>% 
   group_by(Site) %>% 
@@ -37,13 +36,8 @@ clean_dat %>%
             sd_black = sd(Black, na.rm = T)/sqrt(n()),
             mean_white = mean(White, na.rm = T),
             sd_white = sd(White, na.rm = T)/sqrt(n()),
-            mean_diff = mean(Diff, na.rm = T))
-
-clean_dat %>% 
-  group_by(Site, Color) %>% 
-  summarize(n = n())
-
-
+            mean_diff = mean(Diff, na.rm = T),
+            sd_diff = sd(Diff, na.rm = T)/sqrt(n()))
 
 temp_m %>% 
   ggplot(aes(x = Date, y = SoilT_1cm, color = Color, linetype = Density)) +
