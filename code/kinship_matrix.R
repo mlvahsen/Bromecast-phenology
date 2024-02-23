@@ -80,10 +80,10 @@ brms_lin_nokin <- brm(
 
 # These are about the same so stick with the standard one
 
-write_rds(brms_lin, "~/Desktop/phenology_kin_final.rds")
-write_rds(brms_lin_nokin, "~/Desktop/phenology_nokin_final.rds")
+#write_rds(brms_lin, "~/Desktop/phenology_kin_final.rds")
+#write_rds(brms_lin_nokin, "~/Desktop/phenology_nokin_final.rds")
 
-brms_m1 <- read_rds("~/Desktop/brms_linear.rds")
+brms_m1 <- read_rds("~/Documents/Research/USU/Data & Code/phenology_nokin_final.rds")
 
 end <- Sys.time()
 
@@ -455,14 +455,16 @@ brms_lin_CHlevel <- brm(
   jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
     site * pc1_sc + site * pc2_sc +
     site * gravel * density + (1 + density + gravel + site || genotype) +
-    (1 | plot_unique),
+    (1 | plot_unique) + (1|block_unique),
   data = phen_flower_kin,
   data2 = list(Amat = kin),
   family = gaussian(),
-  chains = 1, cores = 1, iter = 1000,
+  chains = 3, cores = 1, iter = 7500,
   # Set seed for reproducibility
   seed = 4685
 )
+
+#write_rds(brms_lin_CHlevel, "~/Documents/Research/USU/Data & Code/phenology_nokin_final_CH.rds")
 
 obj_CH <- as_draws_df(brms_lin_CHlevel)
 
