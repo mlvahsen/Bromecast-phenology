@@ -4,7 +4,8 @@
 # Load libraries
 library(tidyverse); library(here);
 library(geosphere); library(usmap);
-library(patchwork); library(ggnewscale)
+library(patchwork); library(ggnewscale);
+library(grid)
 
 # Source in compiled data for the model
 source(here("supp_code", "compile_data.R"))
@@ -13,7 +14,7 @@ source(here("supp_code", "compile_data.R"))
 theme_set(theme_bw(base_size = 16))
 
 # Read in climate of origin data for genotypes (tmax Jan - April)
-genotype_tmax <- read_csv("~/Desktop/genotype_tmax_norms.csv")
+genotype_tmax <- read_csv("supp_data/genotype_tmax_norms.csv")
 
 # Get soil temperature data
 temp <- read_csv("data/BCtemploggers.csv")
@@ -69,7 +70,7 @@ genotypes_with_gps %>%
   merge(genotype_tmax, all.y = T) -> genotypes_tmax
 
 # Get predicted means by genotype
-brms_lin <- read_rds("~/Desktop/brms_linear.rds")
+brms_lin <- read_rds("~/Documents/Research/USU/Data & Code/phenology_nokin_final.rds")
 as_draws_df(brms_lin) -> obj
 
 obj %>% 
@@ -114,12 +115,12 @@ tibble(site = rep(c("SS", "BA", "WI", "CH"), each = 2),
 
 genotypes_tmax %>% 
   mutate(id = paste("genotype", genotype, sep = "_"),
-         type = "Local adaptation") %>% 
+         type = "Source environment") %>% 
   dplyr::select(jday = jday, tmax = tmax_mean, id, type) -> genotypes_tmax_tomerge
 
 site_tmax_all %>% 
   mutate(id = paste(site, color, sep = "_"),
-         type = "Plasticity") %>% 
+         type = "Current environment") %>% 
   dplyr::select(jday = jday, tmax = tmax_mean, id, type) -> site_tmax_tomerge
 
 climate_sens <- rbind(genotypes_tmax_tomerge, site_tmax_tomerge)
@@ -132,25 +133,25 @@ confint(mod)
 
 # Slope of local adaptation is the slope coefficient
 coef(mod)[2]
-# -1.047707
-# One degree increase in temp means an additional day earlier
+# -1.034127
+# One degree increase in temp means ~1 additional day earlier
 
 # Slope of plasticity is the slope coefficient plus interaction term
 coef(mod)[2] + coef(mod)[4]
-# -5.972538 
-# One degree increase in temp means an additional 6 days earlier
+# -5.064904 
+# One degree increase in temp means an additional 5 days earlier
 
 text_x2 <- grid::textGrob("Avg. maximum temperature Jan - April 1981-2010 (°C)",
                           gp=gpar(fontsize=14, fontface="bold", col = "#2c7bb6"))
 
-png("figs/Fig5_relative_sensitivies.png", width = 6, height = 5, res = 300, units = "in")
+png("figs/Fig6_relative_sensitivies.png", width = 6, height = 5, res = 300, units = "in")
 climate_sens %>% 
   ggplot(aes(x = tmax, y = jday, color = type, fill = type)) +
   geom_point(size = 3) +
   geom_smooth(method = "lm") + 
   geom_point(size = 3, shape = 21, color = "black", alpha = 0.8) +
-  scale_color_manual(values = c("#2c7bb6", "#fdae61")) +
-  scale_fill_manual(values = c("#2c7bb6", "#fdae61")) +
+  scale_color_manual(values = c("#fdae61", "#2c7bb6")) +
+  scale_fill_manual(values = c("#fdae61", "#2c7bb6")) +
   labs(x = "Maximum temperature Jan - April 2022 (°C)",
        y = "First day of flowering",
        color = "",
@@ -158,8 +159,8 @@ climate_sens %>%
   theme(legend.position = "top",
         axis.title.x.bottom = element_text(color = "#fdae61", face = "bold", size = 14)) +
   theme(plot.margin = unit(c(1,1,2,1), "lines")) +
-  annotation_custom(text_x2, xmin=0,xmax=21.5,ymin=93,ymax=93)+
-  ylim(110, 175) +
+  annotation_custom(text_x2, xmin=0,xmax=21.5,ymin=104,ymax=104)+
+  ylim(118, 175) +
   coord_cartesian(clip = "off") +
-  annotate("text", label = expression(paste(beta[temp:type], " = 4.9 (3.2, 6.7)")), x = 15.2, y = 175, size = 5) 
+  annotate("text", label = expression(paste(beta[temp:env], " = 4.0 (2.3, 5.7)")), x = 15.2, y = 175, size = 5) 
 dev.off()
