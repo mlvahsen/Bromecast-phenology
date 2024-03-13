@@ -14,7 +14,7 @@ source(here("supp_code", "compile_data.R"))
 theme_set(theme_bw(base_size = 16))
 
 # Read in climate of origin data for genotypes (tmean October - June)
-genotype_tmean <- read_csv("~/Desktop/genotype_tmean_norms.csv")
+genotype_tmean <- read_csv("supp_data/genotype_tmean_norms.csv")
 
 # Read in gps data for genotypes
 genotype_gps <- read_csv(here("~/Git/Bromecast/gardens/rawdata/collection_sites.csv"))
@@ -42,7 +42,7 @@ genotypes_with_gps %>%
   merge(genotype_tmean, all.y = T) -> genotypes_tmean
 
 # Get predicted means by genotype
-brms_lin <- read_rds("~/Desktop/brms_linear.rds")
+brms_lin <- read_rds("~/Documents/Research/USU/Data & Code/phenology_kin_final.rds")
 as_draws_df(brms_lin) -> obj
 
 obj %>% 
@@ -81,7 +81,7 @@ preds_by_genotype %>%
 site_preds <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("site"))
 
 # Read in tmeans for each site
-site_tmean <- read_csv("~/Desktop/site_tmean.csv")
+site_tmean <- read_csv("~/Documents/Research/USU/Data & Code/site_tmean.csv")
 
 tibble(site_code = rep(c("SS", "BA", "WI", "CH")),
        jday = site_preds$data$predicted) %>% 
@@ -89,19 +89,19 @@ tibble(site_code = rep(c("SS", "BA", "WI", "CH")),
 
 genotypes_tmean %>% 
   mutate(id = paste("genotype", genotype, sep = "_"),
-         type = "Local adaptation") %>% 
+         type = "Source environment") %>% 
   dplyr::select(jday = jday, tmean = tmean_mean, id, type) -> genotypes_tmean_tomerge
 
 site_tmean_all %>% 
   mutate(id = site_code,
-         type = "Plasticity") %>% 
+         type = "Current environment") %>% 
   dplyr::select(jday = jday, tmean = mean_temp, id, type) -> site_tmean_tomerge
 
 climate_sens <- rbind(genotypes_tmean_tomerge, site_tmean_tomerge)
 
 # Fit linear model with treatment contrasts and get CIs for interaction
 options(contrasts = c("contr.treatment", "contr.poly"))
-climate_sens$type <- factor(climate_sens$type, levels = c("Plasticity", "Local adaptation"))
+climate_sens$type <- factor(climate_sens$type, levels = c("Current environment", "Source environment"))
 mod <- lm(jday ~ tmean * type, data = climate_sens)
 summary(mod)
 confint(mod)
@@ -126,5 +126,5 @@ climate_sens %>%
   theme(plot.margin = unit(c(1,1,2,1), "lines")) +
   annotation_custom(text_x2, xmin=0,xmax=17.5,ymin=77,ymax=77)+
   coord_cartesian(clip = "off") +
-  annotate("text", label = expression(paste(beta[temp:type], " = 5.9 (1.7, 10.0)")), x = 11.9, y = 205, size = 5) 
+  annotate("text", label = expression(paste(beta[temp:env], " = 5.9 (1.6, 10.1)")), x = 11.9, y = 205, size = 5) 
 dev.off()

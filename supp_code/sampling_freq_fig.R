@@ -128,33 +128,33 @@ phen %>%
   group_by(jday, site) %>% 
   summarize(n = n()) %>% 
   filter(jday > 50) %>% 
-  mutate(y = case_when(site == "SS" ~ 3,
-                       site == "BA" ~ 4,
+  mutate(y = case_when(site == "SS" ~ 4,
+                       site == "BA" ~ 3,
                        site == "WI" ~ 1,
                        site == "CH"  ~ 2)) %>% 
   ggplot(aes(x = jday, color = site, y = y)) +
   geom_point(size = 4, alpha = 0.5) +
-  scale_color_manual(values = colors) + 
-  scale_fill_manual(values = colors) +
+  scale_color_manual(values = colors[c(2,1,3,4)]) + 
+  scale_fill_manual(values = colors[c(2,1,3,4)]) +
   ylab("") +
-  geom_segment(aes(x = 96, xend = 189, y = 4, yend = 4), color = colors[2]) +
-  geom_segment(aes(x = 87, xend = 198, y = 3, yend = 3), color = colors[1]) +
+  geom_segment(aes(x = 96, xend = 189, y = 3, yend = 3), color = colors[1]) +
+  geom_segment(aes(x = 87, xend = 198, y = 4, yend = 4), color = colors[2]) +
   geom_segment(aes(x = 73, xend = 208, y = 2, yend = 2), color = colors[4]) +
   geom_segment(aes(x = 55, xend = 154, y = 1, yend = 1), color = colors[3]) +
-  geom_point(data = first_flower_site, aes(x = jday, y = c(3,4,1,2), fill = site),
+  geom_point(data = first_flower_site, aes(x = jday, y = c(4,3,1,2), fill = site),
              size = 4, shape = 21, color = "black", stroke = 1) + 
   ylim(0.5,4.5) +
-  annotate("text", x = 142.5, y = 4.4, label = "Baltzor (BA)", color = colors[2], size = 6) +
-  annotate("text", x = 142.5, y = 3.4, label = "Sheep Station (SS)", color = colors[1], size = 6) +
-  annotate("text", x = 140.5, y = 2.4, label = "Cheyenne (CH)", color = colors[4], size = 6) +
-  annotate("text", x = 104.5, y = 1.4, label = "Wildcat (WI)", color = colors[3], size = 6) +
+  annotate("text", x = 142.5, y = 3.4, label = "Cool aseasonal (BA)", color = colors[1], size = 6) +
+  annotate("text", x = 142.5, y = 4.4, label = "Cold aseasonal (SS)", color = colors[2], size = 6) +
+  annotate("text", x = 140.5, y = 2.4, label = "Cool seasonal (CH)", color = colors[4], size = 6) +
+  annotate("text", x = 104.5, y = 1.4, label = "Hot seasonal (WI)", color = colors[3], size = 6) +
   theme_classic(base_size = 16) +
   theme(legend.position = "none",
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         axis.line.y = element_blank()) +
-  xlab("Day of year")-> sampling_timeline
+  xlab("Day of year") -> sampling_timeline
 
-png("figs/prelim_sampling_freq.png", height = 4, width = 6.6, units = "in", res = 300)
+png("figs/FigS1_SamplingFreq.png", height = 4, width = 6.6, units = "in", res = 300)
 sampling_timeline
 dev.off()

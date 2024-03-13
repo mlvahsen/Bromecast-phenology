@@ -116,15 +116,20 @@ r2 <- give_me_R2(colMeans(ppreds), phen_flower_kin$jday)
 
 # Create observed vs predicted plot and add R2 value
 tibble(predicted = colMeans(ppreds),
-       observed = phen_flower_kin$jday) %>% 
+       observed = phen_flower_kin$jday,
+       pred_lower = apply(ppreds, 2, quantile, 0.025),
+       pred_upper = apply(ppreds, 2, quantile, 0.975)) -> pred_obs_plot
+
+pred_obs_plot %>% 
   ggplot(aes(x = predicted, y = observed)) +
   geom_point(size = 3, alpha = 0.5) +
+  geom_segment(aes(x = pred_lower, xend = pred_upper, y = observed, yend = observed), alpha = 0.2) +
   geom_abline(aes(intercept = 0, slope = 1), linewidth = 2, color = "dodgerblue") +
-  ylim(108, 210) + xlim(108, 210) +
-  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 120, y = 210, size = 7) +
+  ylim(95, 210) + xlim(95, 210) +
+  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 110, y = 210, size = 7) +
   labs(x = "Predicted day of year", y = "Observed day of year") -> pred_obs
 
-png("figs/FigS2_modelperform.png", height = 5.1, width = 5.75, res = 300, units = "in")
+png("figs/FigS4_modelperform.png", height = 5.1, width = 5.75, res = 300, units = "in")
 pred_obs
 dev.off()
 
@@ -174,10 +179,10 @@ phen_flower_kin %>%
 phen_flower_kin_plot <- phen_flower_kin %>% 
   mutate(gravel = ifelse(gravel == "white", "White gravel", "Black gravel"),
          density = ifelse(density == "hi", "High", "Low"),
-         site = case_when(site == "SS" ~ "Sheep Station (SS)",
-                                 site == "CH" ~ "Cheyenne (CH)",
-                                 site == "WI" ~ "Wildcat (WI)",
-                                 site == "BA" ~ "Baltzor (BA)"))
+         site = case_when(site == "SS" ~ "Cold aseasonal (SS)",
+                                 site == "CH" ~ "Cool seasonal (CH)",
+                                 site == "WI" ~ "Hot seasonal (WI)",
+                                 site == "BA" ~ "Cool aseasonal (BA)"))
 
 tibble(pc = pc1_plot$data$x * sd_pc1 + mean_pc1,
        jday = pc1_plot$data$predicted,
@@ -229,10 +234,14 @@ tibble(density = pred_dat_int2$data$x,
        upper = pred_dat_int2$data$conf.high) %>% 
   mutate(gravel = ifelse(gravel == "black", "Black gravel", "White gravel"),
          density = ifelse(density == 1, "High", "Low"),
-         site = case_when(site == "SS" ~ "Sheep Station (SS)",
-                          site == "CH" ~ "Cheyenne (CH)",
-                          site == "WI" ~ "Wildcat (WI)",
-                          site == "BA" ~ "Baltzor (BA)")) %>% 
+         site = case_when(site == "SS" ~ "Cold aseasonal (SS)",
+                          site == "CH" ~ "Cool seasonal (CH)",
+                          site == "WI" ~ "Hot seasonal (WI)",
+                          site == "BA" ~ "Cool aseasonal (BA)")) %>% 
+  mutate(Site = factor(site, levels = c("Cold aseasonal (SS)",
+                                        "Cool seasonal (CH)",
+                                        "Cool aseasonal (BA)",
+                                        "Hot seasonal (WI)"))) %>%
   ggplot(aes(x = gravel, y = jday, color = density, fill = density)) +
   geom_jitter(data = phen_flower_kin_plot, aes(x = gravel, y = jday), shape = 1,
               position = position_jitterdodge(

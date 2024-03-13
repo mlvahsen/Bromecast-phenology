@@ -38,36 +38,52 @@ genotype6_pc2_sc <- unique(phen_flower_kin %>% filter(genotype == 6) %>% pull(pc
 quantile(latest - earliest, c(0.5, 0.025, 0.975))
 
 # Supplemental plot showing interactions between PC 1 x site and PC 2 x site
-site_pc1 <- sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc1_sc", "site"))
-site_pc2 <- sjPlot::plot_model(brms_m1, type = "emm", terms = c("pc2_sc", "site"))
+site_pc1 <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("pc1_sc", "site"))
+site_pc2 <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("pc2_sc", "site"))
   
 tibble(pc1_sc = site_pc1$data$x,
        jday = site_pc1$data$predicted,
        site = site_pc1$data$group,
        lower = site_pc1$data$conf.low,
        upper = site_pc1$data$conf.high) %>% 
+  mutate(site = case_when(site == "SS" ~ "Cold aseasonal (SS)",
+                   site == "CH" ~ "Cool seasonal (CH)",
+                   site == "WI" ~ "Hot seasonal (WI)",
+                   site == "BA" ~ "Cool aseasonal (BA)")) %>% 
+  mutate(site = factor(site, levels = c("Cold aseasonal (SS)",
+                                        "Cool seasonal (CH)",
+                                        "Cool aseasonal (BA)",
+                                        "Hot seasonal (WI)"))) %>%
   mutate(pc1 = pc1_sc * sd_pc1 + mean_pc1) %>% 
   ggplot(aes(x = pc1, y = jday, color = site)) +
   geom_line() + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = site), alpha = 0.2, color = NA) +
   labs(x = "PC 1 (cool & wet → hot & dry)", y = "Day of year", color = "Site", fill = "Site") +
   ggtitle("") +
-  scale_color_manual(values = c("#D55E00", "#009E73", "#CC79A7", "#0072B2")) +
-  scale_fill_manual(values = c("#D55E00", "#009E73", "#CC79A7", "#0072B2")) -> site_pc1_plot
+  scale_color_manual(values = c("#009E73", "#0072B2", "#D55E00", "#CC79A7")) +
+  scale_fill_manual(values = c("#009E73", "#0072B2", "#D55E00", "#CC79A7")) -> site_pc1_plot
 
 tibble(pc2_sc = site_pc2$data$x,
        jday = site_pc2$data$predicted,
        site = site_pc2$data$group,
        lower = site_pc2$data$conf.low,
        upper = site_pc2$data$conf.high) %>% 
+  mutate(site = case_when(site == "SS" ~ "Cold aseasonal (SS)",
+                          site == "CH" ~ "Cool seasonal (CH)",
+                          site == "WI" ~ "Hot seasonal (WI)",
+                          site == "BA" ~ "Cool aseasonal (BA)")) %>% 
+  mutate(site = factor(site, levels = c("Cold aseasonal (SS)",
+                                        "Cool seasonal (CH)",
+                                        "Cool aseasonal (BA)",
+                                        "Hot seasonal (WI)"))) %>%
   mutate(pc2 = pc2_sc * sd_pc2 + mean_pc2) %>% 
   ggplot(aes(x = pc2, y = jday, color = site)) +
   geom_line() + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = site), alpha = 0.2, color = NA) +
   labs(x = "PC 2 (high → low temperature seasonality)", y = "", color = "Site", fill = "Site") +
   ggtitle("") +
-  scale_color_manual(values = c("#D55E00", "#009E73", "#CC79A7", "#0072B2")) +
-  scale_fill_manual(values = c("#D55E00", "#009E73", "#CC79A7", "#0072B2"))-> site_pc2_plot
+  scale_color_manual(values = c("#009E73", "#0072B2", "#D55E00", "#CC79A7")) +
+  scale_fill_manual(values = c("#009E73", "#0072B2", "#D55E00", "#CC79A7"))-> site_pc2_plot
 
 png("figs/FigS6_source_int.png", height = 5, width = 11, units = "in", res = 300)
 site_pc1_plot + site_pc2_plot +

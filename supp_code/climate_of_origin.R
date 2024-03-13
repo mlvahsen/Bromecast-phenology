@@ -109,7 +109,7 @@ cg_pc %>%
   ggtitle("(c) Common garden sites") -> cg_pc_plot
 
 
-png(here("figs/Fig1_ClimateOrigin.png"), height = 6.8, width = 13.3, res = 300, units = "in")
+png(here("figs/Fig2_ClimateOrigin.png"), height = 6.8, width = 13.3, res = 300, units = "in")
 pc1 + pc2 +cg_pc_plot + plot_layout(guides = "collect", nrow = 1) & theme(legend.direction = "vertical",
                                                                 legend.box = "horizontal", legend.position = "bottom")
 

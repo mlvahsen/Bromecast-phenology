@@ -15,6 +15,14 @@ temp %>%
 clean_dat <- temp %>% filter(Date >= "2022-01-01" & Date <= "2022-06-22")
 
 clean_dat %>% 
+  mutate(Site = case_when(Site == "Balzor" ~ "Cool aseasonal (BA)",
+                          Site == "Cheyenne" ~ "Cool seasonal (CH)",
+                          Site == "Sheep" ~ "Cold aseasonal (SS)",
+                          Site == "Wildcat" ~ "Hot seasonal (WI)")) %>% 
+  mutate(Site = factor(Site, levels = c("Cold aseasonal (SS)",
+                                        "Cool seasonal (CH)",
+                                        "Cool aseasonal (BA)",
+                                        "Hot seasonal (WI)"))) %>% 
   mutate(Site = case_when(Site == "Balzor" ~ "Baltzor",
                           T ~ Site)) %>% 
   ggplot(aes(x = Date, y = Temp_C, color = Color)) +
@@ -23,7 +31,7 @@ clean_dat %>%
   scale_color_manual(values = c("black", "gray67")) +
   labs(y = "Temperature (°C) at 0-5 cm soil depth", x = "Date", color = "Gravel color") -> soil05
 
-png("figs/FigS3.png", width = 8, height = 6, res = 300, units = "in")
+png("figs/FigS3_SoilTemp5cm.png", width = 8, height = 6, res = 300, units = "in")
 soil05
 dev.off()
 
@@ -47,9 +55,16 @@ temp_m %>%
   labs(y = "temperature (°C)", x = "date", color = "gravel color") +
   ggtitle("Soil temperature at 1 cm depth (°C)")
 
+# Update site labels
 temp_m %>% 
-  mutate(Site = case_when(Site == "Balzor" ~ "Baltzor",
-                          T ~ Site))  %>% 
+  mutate(Site = case_when(Site == "Balzor" ~ "Cool aseasonal (BA)",
+                          Site == "Cheyenne" ~ "Cool seasonal (CH)",
+                          Site == "SheepStation" ~ "Cold aseasonal (SS)",
+                          Site == "Wildcat" ~ "Hot seasonal (WI)")) %>% 
+  mutate(Site = factor(Site, levels = c("Cold aseasonal (SS)",
+                                        "Cool seasonal (CH)",
+                                        "Cool aseasonal (BA)",
+                                        "Hot seasonal (WI)"))) %>% 
   group_by(Site, Date, Color) %>% 
   summarize(mean = mean(SoilT_1cm, na.rm = T),
             se = sd(SoilT_1cm)/sqrt(n())) %>% 
