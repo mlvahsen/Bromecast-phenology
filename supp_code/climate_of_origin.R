@@ -40,6 +40,11 @@ region <- rbind(state, canada)
 `%notin%` <- Negate(`%in%`)
 genotypes_pc <- bioclim_pc %>% filter(site_code %notin% c("SS", "CH", "BA", "WI"))
 cg_pc <- bioclim_pc %>% filter(site_code %in% c("SS", "CH", "BA", "WI"))
+cg_pc %>% 
+  mutate(site_code = case_when(site_code == "SS" ~ "Cold, aseasonal (SS)",
+                               site_code == "BA" ~ "Cool, aseasonal (BA)",
+                               site_code == "CH" ~ "Cool, seasonal (CH)",
+                               site_code == "WI" ~ "Hot, seasonal (WI)")) -> cg_pc
 
 # Plot of PC1 by site for genotypes
 ggplot(data=region, aes(x=long, y=lat, group = group)) +
@@ -58,7 +63,7 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
        x = "Longitude",
        y = "Latitude",
        shape = "Common garden") +
-  scale_shape_manual(values = c(0,5,2,6)) +
+  scale_shape_manual(values = c(2,0,5,6)) +
   ggtitle("(a) PC 1: cool & wet → hot & dry") -> pc1
 
 # Plot of PC2 by site for genotypes
@@ -78,7 +83,7 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
        x = "Longitude",
        y = "Latitude",
        shape = "Common garden") +
-  scale_shape_manual(values = c(0,5,2,6)) +
+  scale_shape_manual(values = c(2,0,5,6)) +
   ggtitle("(b) PC 2: low → high seasonality") -> pc2
 
 # Plot of common garden sites
@@ -91,15 +96,15 @@ cg_pc %>%
   geom_point(aes(fill = PC2, shape = site_code), size = 6) +
   scale_fill_distiller(palette = "PuOr", limits = c(-5,5)) +
   ylim(120, 2406) + xlim(-121, -101) +
-  scale_shape_manual(values = 22:25) +
+  scale_shape_manual(values = c(24,22,23,25)) +
   ylab("Elevation (m)") +
   xlab("Longitude") +
   guides(shape = "none", fill = "none") +
   geom_point(data = genotypes_pc, aes(x = lon, y = elevation), alpha = 0.2) +
-  annotate(geom = "text", x = -117, y = 1030, label = "Wildcat (WI)", size = 5) +
-  annotate(geom = "text", x = -117, y = 1480, label = "Baltzor (BA)", size = 5) +
-  annotate(geom = "text", x = -112, y = 1960, label = "Sheep Station (SS)", size = 5) +
-  annotate(geom = "text", x = -105, y = 2140, label = "Cheyenne (CH)", size = 5) +
+  annotate(geom = "text", x = -117, y = 1030, label = "Hot, seasonal (WI)", size = 4) +
+  annotate(geom = "text", x = -117, y = 1480, label = "Cool, aseasonal (BA)", size = 4) +
+  annotate(geom = "text", x = -112, y = 1960, label = "Cold, aseasonal (SS)", size = 4) +
+  annotate(geom = "text", x = -105, y = 2140, label = "Cool, seasonal (CH)", size = 4) +
   geom_curve(aes(x = -110.5, y = 1480, xend = -112.2, yend = 1680), linewidth = 0.3,
              color = "gray37", arrow = arrow(length = unit(0.08, "inches")), curvature = -0.3) +
   geom_curve(aes(x = -108, y = 1620, xend = -111.4, yend = 1670), linewidth = 0.3, curvature = 0.3,

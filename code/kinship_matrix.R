@@ -20,6 +20,19 @@ sd_pc1 <- attr(scale(phen_flower_kin$pc1),"scaled:scale")
 mean_pc2 <- attr(scale(phen_flower_kin$pc2),"scaled:center")
 sd_pc2 <- attr(scale(phen_flower_kin$pc2),"scaled:scale")
 
+# ## Check for effect of growout in Sheep Station data ####
+# phen_flower_kin %>% 
+#   filter(site == "SS") -> phen_SS_test
+# 
+# library(lmerTest)
+# ss_mod_growout <- lmer(jday ~ density * gravel * pc1_sc + density * gravel * pc2_sc +
+#                          (1 + density + gravel || genotype) +
+#                          (1 | plot_unique) + (1|block_unique) + growout, data = phen_SS_test)
+# 
+# summary(ss_mod_growout)
+# No effect of growout
+# growout1 -0.16106    0.46462 2391.36210  -0.347  0.72888    
+
 # ## Check effect of herbivorized plants on analysis ####
 # # Fit linear model without herbivory plants and with herbivory plants
 # phen_flower_kin %>% 
@@ -53,9 +66,8 @@ start <- Sys.time()
 options(contrasts = c("contr.sum", "contr.poly"))
 
 brms_lin <- brm(
-  jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
-    site * pc1_sc + site * pc2_sc +
-    density * gravel * site + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
+  jday ~ 0 + Intercept + density * gravel * pc1_sc + density * gravel * pc2_sc +
+    site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
     (1 | plot_unique) + (1|block_unique),
   data = phen_flower_kin,
   data2 = list(Amat = kin),
@@ -66,9 +78,8 @@ brms_lin <- brm(
 )
 
 brms_lin_nokin <- brm(
-  jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
-    site * pc1_sc + site * pc2_sc +
-    density * gravel * site + (1 + density + gravel + site || genotype) +
+  jday ~ 0 + Intercept + density * gravel * pc1_sc + density * gravel * pc2_sc +
+    site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || genotype) +
     (1 | plot_unique) + (1|block_unique),
   data = phen_flower_kin,
   data2 = list(Amat = kin),
@@ -78,12 +89,10 @@ brms_lin_nokin <- brm(
   seed = 4685
 )
 
-# These are about the same so stick with the standard one
+write_rds(brms_lin, "~/Desktop/phenology_kin_final.rds")
+write_rds(brms_lin_nokin, "~/Desktop/phenology_nokin_final.rds")
 
-#write_rds(brms_lin, "~/Desktop/phenology_kin_final.rds")
-#write_rds(brms_lin_nokin, "~/Desktop/phenology_nokin_final.rds")
-
-brms_lin <- read_rds("~/Documents/Research/USU/Data & Code/phenology_nokin_final.rds")
+#brms_lin <- read_rds("~/Documents/Research/USU/Data & Code/phenology_nokin_final.rds")
 
 end <- Sys.time()
 
@@ -93,14 +102,19 @@ end - start
 ## Create graphics - Model checking ####
 
 # Generate posterior predictive distribution
-ppreds <- posterior_predict(brms_lin, draws = 500)
+ppreds <- posterior_predict(brms_lin_nokin, draws = 500)
 # Check against distribution of data, predicted mean, and predicted SD
 ppc_dens_overlay(phen_flower_kin$jday, ppreds[1:50, ])
 # Fits data distribution reasonably well (smooths over high density sampling
 # dates which is to be expected)
-ppc_stat(phen_flower_kin$jday, ppreds, stat = "mean")
+ppc_stat(phen_flower_kin$jday, ppreds, stat = "mean") -> ppc_mean
 # Captures mean well
-ppc_stat(phen_flower_kin$jday, ppreds, stat = "sd")
+ppc_stat(phen_flower_kin$jday, ppreds, stat = "sd") -> ppc_sd
+
+ppc_mean + xlab("Mean of posterior predictive distribution") +
+  theme(legend.position = "none")->ppc_mean
+ppc_sd + xlab("Std. dev. of posterior predictive distribution") +
+  theme(legend.position = "none")->ppc_sd
 # Capture standard deviation well
 
 # Make a plot of predicted and observed for model
@@ -126,11 +140,15 @@ pred_obs_plot %>%
   geom_segment(aes(x = pred_lower, xend = pred_upper, y = observed, yend = observed), alpha = 0.2) +
   geom_abline(aes(intercept = 0, slope = 1), linewidth = 2, color = "dodgerblue") +
   ylim(95, 210) + xlim(95, 210) +
-  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 110, y = 210, size = 7) +
+  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 103, y = 210, size = 7) +
   labs(x = "Predicted day of year", y = "Observed day of year") -> pred_obs
 
-png("figs/FigS4_modelperform.png", height = 5.1, width = 5.75, res = 300, units = "in")
-pred_obs
+ppcs <- ppc_mean + ppc_sd
+
+png("figs/FigS4_modelperform.png", height = 8.82, width = 9.33, res = 300, units = "in")
+pred_obs / ppcs + plot_layout(heights = c(2,1)) + plot_annotation(tag_levels = "a",
+                                                                  tag_prefix = "(",
+                                                                  tag_suffix = ")")
 dev.off()
 
 ## Create graphics - Results ####
@@ -138,9 +156,9 @@ dev.off()
 theme_set(theme_bw(base_size = 16))
 
 # Not concerned about singularity warnings here because we are fitting this Bayesian
-pc1_plot <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("pc1_sc", "density", "gravel"))
-pc2_plot <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("pc2_sc", "density", "gravel"))
-site_plot <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("site"))
+pc1_plot <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("pc1_sc", "density", "gravel"))
+pc2_plot <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("pc2_sc", "density", "gravel"))
+site_plot <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("site"))
 
 tibble(jday = site_plot$data$predicted,
        site = c("Cold\naseasonal (SS)", "Cool\nseasonal (CH)",
@@ -225,7 +243,7 @@ site_subplot + pc_subplot + plot_annotation(tag_levels = "a", tag_prefix = "(",
 dev.off()
 
 # Create Fig S4 - density x gravel interaction across sites
-pred_dat_int2 <- sjPlot::plot_model(brms_lin, terms = c("density", "gravel", "site"), type = "emm")
+pred_dat_int2 <- sjPlot::plot_model(brms_lin_nokin, terms = c("density", "gravel", "site"), type = "emm")
 tibble(density = pred_dat_int2$data$x,
        gravel = pred_dat_int2$data$group,
        site = pred_dat_int2$data$facet,
@@ -266,7 +284,7 @@ int_plot2
 dev.off()
 
 # Collect genotype-level information for genotype and GxE plots
-as_draws_df(brms_lin) -> obj
+as_draws_df(brms_lin_nokin) -> obj
 
 # Collect random intercepts for each genotype
 obj %>% 
@@ -341,7 +359,7 @@ preds_by_genotype %>%
   geom_ribbon(data = sum_stat_pc1,
               aes(ymin = lower, ymax = upper, fill = density), alpha = 0.4, color = NA, fill = "mediumpurple1") +
   labs(x = "PC 1: cool & wet → hot & dry",
-       y = "Day of year",
+       y = "First day of flowering",
        fill = "") +
   ylim(139, 170) -> pc1_genotype_subplot
 
@@ -383,6 +401,16 @@ mean(obj$b_Intercept) - mean(obj$b_gravel1) +
   random_intercepts$mean - random_slopes_gravel$effect_gravel +
     mean(obj$b_pc1_sc)*pcs$pc1_sc + mean(obj$b_pc2_sc)*pcs$pc2_sc -> white_genotype
 
+# Make inset histogram of different slopes
+tibble(gravel_diff = white_genotype - black_genotype) %>% 
+  ggplot(aes(x = gravel_diff)) +
+  geom_density(fill = "gray47") +
+  geom_rug() +
+  xlim(8.5, 12.2) +
+  labs(x = "Gravel effect (days)\n[White - black gravel]",
+       y = "Density") +
+  theme_classic(base_size = 14) -> gravel_effect
+
 # Pull out random slopes for density treatments
 obj %>% 
   select(contains("r_genotype") & contains("density1")) %>% 
@@ -400,6 +428,16 @@ mean(obj$b_Intercept) + mean(obj$b_density1) +
 mean(obj$b_Intercept) - mean(obj$b_density1) +
       random_intercepts$mean - random_slopes_density$effect_density +
       mean(obj$b_pc1_sc)*pcs$pc1_sc + mean(obj$b_pc2_sc)*pcs$pc2_sc -> low_genotype
+
+# Make inset histogram of different slopes
+tibble(density_diff = low_genotype - high_genotype) %>% 
+  ggplot(aes(x = density_diff)) +
+  geom_density(fill = "gray47") +
+  geom_rug() +
+  xlim(4.5,7) +
+  labs(x = "Density effect (days)\n[Low - high density]",
+       y = "Density") +
+  theme_classic(base_size = 14) -> density_effect
 
 # Pull random slopes for each site (can only do SS, BA, and WI based on how the
 # model is parameterized -- will fit same model reordering factor to get CH)
@@ -434,20 +472,20 @@ mean(obj$b_Intercept) + mean(obj$b_site3) +
 # Relevel factor for second model to get CH value
 phen_flower_kin$site <- factor(phen_flower_kin$site, levels = c("CH", "WI", "SS", "BA"))
 
-# brms_lin_CHlevel <- brm(
-#   jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
-#     site * pc1_sc + site * pc2_sc +
-#     site * gravel * density + (1 + density + gravel + site || genotype) +
-#     (1 | plot_unique) + (1|block_unique),
-#   data = phen_flower_kin,
-#   data2 = list(Amat = kin),
-#   family = gaussian(),
-#   chains = 3, cores = 1, iter = 7500,
-#   # Set seed for reproducibility
-#   seed = 4685
-# )
+brms_lin_CHlevel <- brm(
+  jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
+    site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || genotype) +
+    (1 | plot_unique) + (1|block_unique),
+  data = phen_flower_kin,
+  data2 = list(Amat = kin),
+  family = gaussian(),
+  chains = 3, cores = 1, iter = 7500,
+  # Set seed for reproducibility
+  seed = 4685
+)
 
-brms_lin_CHlevel <- read_rds("~/Documents/Research/USU/Data & Code/phenology_nokin_final_CH.rds")
+#write_rds(brms_lin_CHlevel, "~/Documents/Research/USU/Data & Code/phenology_nokin_final_CH.rds")
+#brms_lin_CHlevel <- read_rds("~/Documents/Research/USU/Data & Code/phenology_nokin_final_CH.rds")
 
 # Pull draws from model fit
 obj_CH <- as_draws_df(brms_lin_CHlevel)
@@ -475,6 +513,16 @@ mean(obj_CH$b_Intercept) + mean(obj_CH$b_site1) +
   random_intercepts_CH$mean + random_slopes_CH$effect_CH +
   mean(obj_CH$b_pc1_sc)*pcs$pc1_sc + mean(obj_CH$b_pc2_sc)*pcs$pc2_sc -> CH_genotype
 
+# Make inset histogram of different slopes
+tibble(site_diff = SS_genotype - CH_genotype) %>% 
+  ggplot(aes(x = site_diff)) +
+  geom_density(fill = "gray47") +
+  geom_rug() +
+  xlim(-2.5,3) +
+  labs(x = "Site effect (days)\n[Cold aseasonal - cool seasonal]",
+       y = "Density") +
+  theme_classic(base_size = 14) -> site_effect
+
 # Create gravel GxE subplot
 cbind(genotype = random_intercepts$genotype, white = white_genotype, black = black_genotype) %>% 
   as_tibble() %>% 
@@ -482,9 +530,8 @@ cbind(genotype = random_intercepts$genotype, white = white_genotype, black = bla
   mutate(gravel = ifelse(gravel == "black", "Black", "White")) %>% 
   ggplot(aes(x = gravel, y = jday, group = genotype)) + 
   geom_point(size = 3, pch = 21, alpha = 0.5, fill = "black") +
-  geom_line(alpha = 0.5) +
-  ylim(132, 175) +
-  labs(y = "Day of year", x = "Gravel") -> gravel_gxe
+  geom_line(alpha = 0.5)+
+  labs(y = "First day of flowering", x = "Gravel") -> gravel_gxe
 
 # Create density GxE subplot
 cbind(genotype = random_intercepts$genotype, high = high_genotype, low = low_genotype) %>% 
@@ -494,8 +541,7 @@ cbind(genotype = random_intercepts$genotype, high = high_genotype, low = low_gen
   ggplot(aes(x = density, y = jday, group = genotype)) + 
   geom_point(size = 3, pch = 21, alpha = 0.5, fill = "black") +
   geom_line(alpha = 0.5) +
-  ylim(132, 175) +
-  labs(y = "Day of year", x = "Density")-> density_gxe 
+  labs(y = "First day of flowering", x = "Density")-> density_gxe 
 
 # Create site GxE subplot
 cbind(genotype = random_intercepts$genotype,
@@ -512,19 +558,25 @@ cbind(genotype = random_intercepts$genotype,
   ggplot(aes(x = site, y = jday, group = genotype)) + 
   geom_point(size = 3, pch = 21, fill = "black", alpha = 0.5) +
   geom_line(alpha = 0.5) +
-  labs(y = "Day of year", x = "Site\n (cool & wet → hot & dry)") -> site_gxe
+  labs(y = "First day of flowering", x = "Site\n (cool & wet → hot & dry)") -> site_gxe
   #theme(axis.text.x = element_text(angle = 10, hjust = 1))
 
 # Create design matrix for spacing out plots
 design <- c(
-  area(1, 1, 4, 3),
-  area(1, 4, 2, 5),
-  area(3, 4, 4, 5)
+  area(1, 1, 6, 3),
+  area(1, 4, 3, 6),
+  area(4, 4, 6, 6),
+  area(7, 1, 7, 2),
+  area(7, 3, 7, 4),
+  area(7, 5, 7, 6)
 )
 
-png("figs/Fig5_gxe.png", height = 7, width = 12.4, res = 300, units = "in")
-site_gxe + gravel_gxe + density_gxe +
-  plot_layout(design = design, guides = "collect") +
+# plot(design)
+
+png("figs/Fig5_gxe.png", height = 8.73, width = 12.66, res = 300, units = "in")
+(site_gxe | gravel_gxe / density_gxe) /
+  (site_effect + gravel_effect + density_effect) + 
+  plot_layout(heights = c(4,1)) +
   plot_annotation(tag_levels = "a",
                   tag_prefix = "(",
                   tag_suffix = ")") 

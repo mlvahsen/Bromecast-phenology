@@ -1,6 +1,6 @@
 library(tidybayes)
 
-as_draws_df(brms_lin) -> obj
+as_draws_df(brms_lin_nokin) -> obj
 
 # Store parameters to unscale later
 mean_pc1 <- attr(scale(phen_flower_kin$pc1),"scaled:center")
