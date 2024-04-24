@@ -63,7 +63,7 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
        x = "Longitude",
        y = "Latitude",
        shape = "Common garden") +
-  scale_shape_manual(values = c(2,0,5,6)) +
+  scale_shape_manual(values = c(2,5,0,6)) +
   ggtitle("(a) PC 1: cool & wet → hot & dry") -> pc1
 
 # Plot of PC2 by site for genotypes
@@ -83,7 +83,7 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
        x = "Longitude",
        y = "Latitude",
        shape = "Common garden") +
-  scale_shape_manual(values = c(2,0,5,6)) +
+  scale_shape_manual(values = c(2,5,0,6)) +
   ggtitle("(b) PC 2: low → high seasonality") -> pc2
 
 # Plot of common garden sites
@@ -96,7 +96,7 @@ cg_pc %>%
   geom_point(aes(fill = PC2, shape = site_code), size = 6) +
   scale_fill_distiller(palette = "PuOr", limits = c(-5,5)) +
   ylim(120, 2406) + xlim(-121, -101) +
-  scale_shape_manual(values = c(24,22,23,25)) +
+  scale_shape_manual(values = c(24,23,22,25)) +
   ylab("Elevation (m)") +
   xlab("Longitude") +
   guides(shape = "none", fill = "none") +

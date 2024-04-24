@@ -38,8 +38,8 @@ genotype6_pc2_sc <- unique(phen_flower_kin %>% filter(genotype == 6) %>% pull(pc
 quantile(latest - earliest, c(0.5, 0.025, 0.975))
 
 # Supplemental plot showing interactions between PC 1 x site and PC 2 x site
-site_pc1 <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("pc1_sc", "site"))
-site_pc2 <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("pc2_sc", "site"))
+site_pc1 <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("pc1_sc", "site"))
+site_pc2 <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("pc2_sc", "site"))
   
 tibble(pc1_sc = site_pc1$data$x,
        jday = site_pc1$data$predicted,
@@ -60,8 +60,8 @@ tibble(pc1_sc = site_pc1$data$x,
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = site), alpha = 0.2, color = NA) +
   labs(x = "PC 1 (cool & wet → hot & dry)", y = "Day of year", color = "Site", fill = "Site") +
   ggtitle("") +
-  scale_color_manual(values = c("#009E73", "#0072B2", "#D55E00", "#CC79A7")) +
-  scale_fill_manual(values = c("#009E73", "#0072B2", "#D55E00", "#CC79A7")) -> site_pc1_plot
+  scale_color_manual(values = c("#332288", "#AA4499", "#44AA99", "#6699CC")) +
+  scale_fill_manual(values = c("#332288", "#AA4499", "#44AA99", "#6699CC")) -> site_pc1_plot
 
 tibble(pc2_sc = site_pc2$data$x,
        jday = site_pc2$data$predicted,
@@ -80,10 +80,10 @@ tibble(pc2_sc = site_pc2$data$x,
   ggplot(aes(x = pc2, y = jday, color = site)) +
   geom_line() + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = site), alpha = 0.2, color = NA) +
-  labs(x = "PC 2 (high → low temperature seasonality)", y = "", color = "Site", fill = "Site") +
+  labs(x = "PC 2 (low → high temperature seasonality)", y = "", color = "Site", fill = "Site") +
   ggtitle("") +
-  scale_color_manual(values = c("#009E73", "#0072B2", "#D55E00", "#CC79A7")) +
-  scale_fill_manual(values = c("#009E73", "#0072B2", "#D55E00", "#CC79A7"))-> site_pc2_plot
+  scale_color_manual(values = c("#332288", "#AA4499", "#44AA99", "#6699CC")) +
+  scale_fill_manual(values = c("#332288", "#AA4499", "#44AA99", "#6699CC"))-> site_pc2_plot
 
 png("figs/FigS6_source_int.png", height = 5, width = 11, units = "in", res = 300)
 site_pc1_plot + site_pc2_plot +

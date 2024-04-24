@@ -1,4 +1,4 @@
-library(tidyverse)
+library(tidyverse); library(lubridate)
 
 temp_m <- read_csv("data/micrositetemperature.csv")
 temp <- read_csv("data/BCtemploggers.csv")
@@ -25,11 +25,13 @@ clean_dat %>%
                                         "Hot seasonal (WI)"))) %>% 
   mutate(Site = case_when(Site == "Balzor" ~ "Baltzor",
                           T ~ Site)) %>% 
+  mutate(Color = case_when(Color == "Black" ~ "High (black)",
+                           Color == "White" ~ "Low (white)")) %>% 
   ggplot(aes(x = Date, y = Temp_C, color = Color)) +
   geom_line(linewidth = 0.8) +
   facet_wrap(~Site) +
   scale_color_manual(values = c("black", "gray67")) +
-  labs(y = "Temperature (°C) at 0-5 cm soil depth", x = "Date", color = "Gravel color") -> soil05
+  labs(y = "Temperature (°C) at 0-5 cm soil depth", x = "Date", color = "Temp. treatment\n(Gravel color)") -> soil05
 
 png("figs/FigS3_SoilTemp5cm.png", width = 8, height = 6, res = 300, units = "in")
 soil05
@@ -47,14 +49,6 @@ clean_dat %>%
             mean_diff = mean(Diff, na.rm = T),
             sd_diff = sd(Diff, na.rm = T)/sqrt(n()))
 
-temp_m %>% 
-  ggplot(aes(x = Date, y = SoilT_1cm, color = Color, linetype = Density)) +
-  geom_line(linewidth = 0.8) +
-  facet_wrap(~Site) +
-  scale_color_manual(values = c("black", "gray67")) +
-  labs(y = "temperature (°C)", x = "date", color = "gravel color") +
-  ggtitle("Soil temperature at 1 cm depth (°C)")
-
 # Update site labels
 temp_m %>% 
   mutate(Site = case_when(Site == "Balzor" ~ "Cool aseasonal (BA)",
@@ -65,18 +59,22 @@ temp_m %>%
                                         "Cool seasonal (CH)",
                                         "Cool aseasonal (BA)",
                                         "Hot seasonal (WI)"))) %>% 
+  mutate(Color = case_when(Color == "Black" ~ "High (black)",
+                           Color == "White" ~ "Low (white)")) %>% 
+  mutate(Date = mdy(Date)) %>% 
   group_by(Site, Date, Color) %>% 
   summarize(mean = mean(SoilT_1cm, na.rm = T),
-            se = sd(SoilT_1cm)/sqrt(n())) %>% 
+            sd = sd(SoilT_1cm)) %>% 
   ungroup() %>% 
-  ggplot(aes(x = Date, y = mean, color = Color)) +
-  geom_point(size = 3) +
+  ggplot(aes(x = Date, y = mean)) +
+  geom_point(size = 3, aes(shape = Site, fill = Color)) +
+  scale_fill_manual(values = c("black", "gray67")) +
   facet_wrap(~Site) +
-  geom_errorbar(aes(x = Date, ymin = mean - se, ymax = mean + se), width = 0.1) +
   labs(x = "Date", y = "Temperature (°C) at 0-1 cm soil depth",
-       color = "Gravel color") +
-  scale_color_manual(values = c("black", "gray67")) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) -> soil_temp
+       fill = "Temp. treatment\n(Gravel color)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_shape_manual(values = c(24,22,23,25), guide = "none") +
+  guides(fill=guide_legend(override.aes=list(shape=21))) -> soil_temp
 
 temp_m %>% 
   group_by(Site, Color) %>% 

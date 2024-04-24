@@ -68,7 +68,7 @@ options(contrasts = c("contr.sum", "contr.poly"))
 brms_lin <- brm(
   jday ~ 0 + Intercept + density * gravel * pc1_sc + density * gravel * pc2_sc +
     site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
-    (1 | plot_unique) + (1|block_unique),
+    (1 | plot_unique),
   data = phen_flower_kin,
   data2 = list(Amat = kin),
   family = gaussian(),
@@ -80,7 +80,7 @@ brms_lin <- brm(
 brms_lin_nokin <- brm(
   jday ~ 0 + Intercept + density * gravel * pc1_sc + density * gravel * pc2_sc +
     site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || genotype) +
-    (1 | plot_unique) + (1|block_unique),
+    (1 | plot_unique),
   data = phen_flower_kin,
   data2 = list(Amat = kin),
   family = gaussian(),
@@ -89,22 +89,17 @@ brms_lin_nokin <- brm(
   seed = 4685
 )
 
-write_rds(brms_lin, "~/Desktop/phenology_kin_final.rds")
-write_rds(brms_lin_nokin, "~/Desktop/phenology_nokin_final.rds")
+#write_rds(brms_lin, "~/Desktop/phenology_kin_final.rds")
+#write_rds(brms_lin_nokin, "~/Desktop/phenology_nokin_final.rds")
 
-#brms_lin <- read_rds("~/Documents/Research/USU/Data & Code/phenology_nokin_final.rds")
-
-end <- Sys.time()
-
-end - start
-# Time difference of 0.6171344 hours
+brms_lin_nokin <- read_rds("~/Desktop/phenology_nokin_final.rds")
 
 ## Create graphics - Model checking ####
 
 # Generate posterior predictive distribution
-ppreds <- posterior_predict(brms_lin_nokin, draws = 500)
+ppreds <- posterior_predict(brms_lin_nokin, draws = 1000)
 # Check against distribution of data, predicted mean, and predicted SD
-ppc_dens_overlay(phen_flower_kin$jday, ppreds[1:50, ])
+ppc_dens_overlay(phen_flower_kin$jday, ppreds)
 # Fits data distribution reasonably well (smooths over high density sampling
 # dates which is to be expected)
 ppc_stat(phen_flower_kin$jday, ppreds, stat = "mean") -> ppc_mean
@@ -140,12 +135,12 @@ pred_obs_plot %>%
   geom_segment(aes(x = pred_lower, xend = pred_upper, y = observed, yend = observed), alpha = 0.2) +
   geom_abline(aes(intercept = 0, slope = 1), linewidth = 2, color = "dodgerblue") +
   ylim(95, 210) + xlim(95, 210) +
-  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 103, y = 210, size = 7) +
+  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 100, y = 210, size = 7) +
   labs(x = "Predicted day of year", y = "Observed day of year") -> pred_obs
 
 ppcs <- ppc_mean + ppc_sd
 
-png("figs/FigS4_modelperform.png", height = 8.82, width = 9.33, res = 300, units = "in")
+png("figs/FigS4_modelperform.png", height = 8.82, width = 10, res = 300, units = "in")
 pred_obs / ppcs + plot_layout(heights = c(2,1)) + plot_annotation(tag_levels = "a",
                                                                   tag_prefix = "(",
                                                                   tag_suffix = ")")
@@ -155,7 +150,7 @@ dev.off()
 # Preliminary results graphs
 theme_set(theme_bw(base_size = 16))
 
-# Not concerned about singularity warnings here because we are fitting this Bayesian
+# Get marginal means for PC x density x gravel interaction
 pc1_plot <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("pc1_sc", "density", "gravel"))
 pc2_plot <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("pc2_sc", "density", "gravel"))
 site_plot <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("site"))
@@ -187,15 +182,15 @@ phen_flower_kin %>%
                                          yend = jday, xend = c(1.1, 2.1, 4.1, 3.1)),
              linewidth = 0.5) +
   labs("") +
-  scale_shape_manual(values = 22:25) +
+  scale_shape_manual(values = c(24,22,23,25)) +
   labs(y = "First day of flowering",
        x = "Site\n(cool & wet → hot & dry)") +
   theme(legend.position = "none") +
-  scale_color_manual(values = c("#009E73","#0072B2", "#D55E00", "#CC79A7")) +
-  scale_fill_manual(values = c("#009E73","#0072B2", "#D55E00", "#CC79A7")) -> site_subplot
+  scale_color_manual(values = c("#332288","#AA4499", "#44AA99", "#6699CC")) +
+  scale_fill_manual(values = c("#332288","#AA4499", "#44AA99", "#6699CC")) -> site_subplot
 
 phen_flower_kin_plot <- phen_flower_kin %>% 
-  mutate(gravel = ifelse(gravel == "white", "White gravel", "Black gravel"),
+  mutate(gravel = ifelse(gravel == "white", "High (black)", "Low (white)"),
          density = ifelse(density == "hi", "High", "Low"),
          site = case_when(site == "SS" ~ "Cold aseasonal (SS)",
                                  site == "CH" ~ "Cool seasonal (CH)",
@@ -208,7 +203,7 @@ tibble(pc = pc1_plot$data$x * sd_pc1 + mean_pc1,
        upper = pc1_plot$data$conf.high,
        gravel = pc1_plot$data$facet,
        density = pc1_plot$data$group) %>% 
-  mutate(gravel = ifelse(gravel == "white", "White gravel", "Black gravel"),
+  mutate(gravel = ifelse(gravel == "white", "Low temp.\n(white gravel)", "High temp.\n(black gravel)"),
          density = ifelse(density == "hi", "High", "Low"),
          pc_type = "PC 1 (cool & wet → hot & dry)") -> pc1_dat
 
@@ -218,7 +213,7 @@ tibble(pc = pc2_plot$data$x * sd_pc2 + mean_pc2,
        upper = pc2_plot$data$conf.high,
        gravel = pc2_plot$data$facet,
        density = pc2_plot$data$group) %>% 
-  mutate(gravel = ifelse(gravel == "white", "White gravel", "Black gravel"),
+  mutate(gravel = ifelse(gravel == "white", "Low temp.\n(white gravel)", "High temp.\n(black gravel)"),
          density = ifelse(density == "hi", "High", "Low"),
          pc_type = "PC 2 (low → high seasonality)") -> pc2_dat
 
@@ -232,8 +227,8 @@ rbind(pc1_dat, pc2_dat) %>%
        color = "Density",
        fill = "Density",
        linetype = "Density") +
-  scale_color_manual(values = c("gray47", "maroon")) +
-  scale_fill_manual(values = c("gray47", "maroon")) +
+  scale_color_manual(values = c("#888888", "#DDCC77")) +
+  scale_fill_manual(values = c("#888888", "#DDCC77")) +
   theme(legend.position = "top") -> pc_subplot
 
 png("figs/Fig3_int.png", height = 9.5, width = 7.8, res = 300, units = "in")
@@ -250,7 +245,7 @@ tibble(density = pred_dat_int2$data$x,
        jday = pred_dat_int2$data$predicted,
        lower = pred_dat_int2$data$conf.low,
        upper = pred_dat_int2$data$conf.high) %>% 
-  mutate(gravel = ifelse(gravel == "black", "Black gravel", "White gravel"),
+  mutate(gravel = ifelse(gravel == "black", "High (black)", "Low (white)"),
          density = ifelse(density == 1, "High", "Low"),
          site = case_when(site == "SS" ~ "Cold aseasonal (SS)",
                           site == "CH" ~ "Cool seasonal (CH)",
@@ -260,8 +255,8 @@ tibble(density = pred_dat_int2$data$x,
                                         "Cool seasonal (CH)",
                                         "Cool aseasonal (BA)",
                                         "Hot seasonal (WI)"))) %>%
-  ggplot(aes(x = gravel, y = jday, color = density, fill = density)) +
-  geom_jitter(data = phen_flower_kin_plot, aes(x = gravel, y = jday), shape = 1,
+  ggplot(aes(x = gravel, y = jday, shape = site, color = density, fill = density)) +
+  geom_jitter(data = phen_flower_kin_plot, aes(x = gravel, y = jday, shape = site), 
               position = position_jitterdodge(
                 jitter.width = 0.2,
                 jitter.height = 0,
@@ -270,14 +265,17 @@ tibble(density = pred_dat_int2$data$x,
               ), size = 0.8, alpha = 0.1) +
   geom_errorbar(aes(x = gravel, ymin = lower, ymax = upper),
                 width = 0, position = position_dodge(width = 0.75), color = "black") +
-  geom_point(size = 1.5, position = position_dodge(width = 0.75), pch = 21, color = "black") +
+  geom_point(aes(shape = site),size = 1.5, position = position_dodge(width = 0.75), color = "black") +
   facet_wrap(~site) +
-  scale_color_manual(values = c("gray47", "maroon")) +
-  scale_fill_manual(values = c("gray47", "maroon")) +
+  scale_color_manual(values = c("#888888", "#DDCC77")) +
+  scale_shape_manual(values = c(24,23,22,25), guide = "none") +
+  scale_fill_manual(values = c("#888888", "#DDCC77")) +
   labs(fill = "Density",
        color = "Density",
-       x = "Gravel",
-       y = "Day of year") -> int_plot2
+       x = "Temp. treatment (gravel)",
+       y = "Day of year",
+       shape = "") +
+  guides(fill=guide_legend(override.aes=list(shape=21))) -> int_plot2
   
 png("figs/FigS5_int.png", height = 9.5, width = 9.5, res = 300, units = "in") 
 int_plot2
@@ -405,7 +403,7 @@ mean(obj$b_Intercept) - mean(obj$b_gravel1) +
 tibble(gravel_diff = white_genotype - black_genotype) %>% 
   ggplot(aes(x = gravel_diff)) +
   geom_density(fill = "gray47") +
-  geom_rug() +
+  geom_rug(length = unit(0.05, "npc")) +
   xlim(8.5, 12.2) +
   labs(x = "Gravel effect (days)\n[White - black gravel]",
        y = "Density") +
@@ -433,7 +431,7 @@ mean(obj$b_Intercept) - mean(obj$b_density1) +
 tibble(density_diff = low_genotype - high_genotype) %>% 
   ggplot(aes(x = density_diff)) +
   geom_density(fill = "gray47") +
-  geom_rug() +
+  geom_rug(length = unit(0.05, "npc")) +
   xlim(4.5,7) +
   labs(x = "Density effect (days)\n[Low - high density]",
        y = "Density") +
@@ -472,20 +470,20 @@ mean(obj$b_Intercept) + mean(obj$b_site3) +
 # Relevel factor for second model to get CH value
 phen_flower_kin$site <- factor(phen_flower_kin$site, levels = c("CH", "WI", "SS", "BA"))
 
-brms_lin_CHlevel <- brm(
-  jday ~ 1 + density * gravel * pc1_sc + density * gravel * pc2_sc +
-    site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || genotype) +
-    (1 | plot_unique) + (1|block_unique),
-  data = phen_flower_kin,
-  data2 = list(Amat = kin),
-  family = gaussian(),
-  chains = 3, cores = 1, iter = 7500,
-  # Set seed for reproducibility
-  seed = 4685
-)
+# brms_lin_CHlevel <- brm(
+#   jday ~ 0 + Intercept + density * gravel * pc1_sc + density * gravel * pc2_sc +
+#     site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || genotype) +
+#     (1 | plot_unique),
+#   data = phen_flower_kin,
+#   data2 = list(Amat = kin),
+#   family = gaussian(),
+#   chains = 3, cores = 1, iter = 7500,
+#   # Set seed for reproducibility
+#   seed = 4685
+# )
 
-#write_rds(brms_lin_CHlevel, "~/Documents/Research/USU/Data & Code/phenology_nokin_final_CH.rds")
-#brms_lin_CHlevel <- read_rds("~/Documents/Research/USU/Data & Code/phenology_nokin_final_CH.rds")
+#write_rds(brms_lin_CHlevel, "~/Desktop/phenology_nokin_final_CH.rds")
+brms_lin_CHlevel <- read_rds("~/Desktop/phenology_nokin_final_CH.rds")
 
 # Pull draws from model fit
 obj_CH <- as_draws_df(brms_lin_CHlevel)
@@ -517,7 +515,7 @@ mean(obj_CH$b_Intercept) + mean(obj_CH$b_site1) +
 tibble(site_diff = SS_genotype - CH_genotype) %>% 
   ggplot(aes(x = site_diff)) +
   geom_density(fill = "gray47") +
-  geom_rug() +
+  geom_rug(length = unit(0.05, "npc")) +
   xlim(-2.5,3) +
   labs(x = "Site effect (days)\n[Cold aseasonal - cool seasonal]",
        y = "Density") +
@@ -558,8 +556,8 @@ cbind(genotype = random_intercepts$genotype,
   ggplot(aes(x = site, y = jday, group = genotype)) + 
   geom_point(size = 3, pch = 21, fill = "black", alpha = 0.5) +
   geom_line(alpha = 0.5) +
-  labs(y = "First day of flowering", x = "Site\n (cool & wet → hot & dry)") -> site_gxe
-  #theme(axis.text.x = element_text(angle = 10, hjust = 1))
+  labs(y = "First day of flowering", x = "Site\n (cool & wet → hot & dry)") +
+  scale_y_continuous(limits = c(120,175), breaks = seq(120,170,by=10))-> site_gxe
 
 # Create design matrix for spacing out plots
 design <- c(
