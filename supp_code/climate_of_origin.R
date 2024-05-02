@@ -1,6 +1,7 @@
 # This code calculates principal components analysis on bioclimate data for each
 # genotype to get PC axes that describe the climate of origin for genotypes from
-# the common garden site to use as a covariate in the phenology models.
+# the common garden site to use as a covariate in the phenology models. Also
+# creates Figure 2
 
 ## Preliminaries ####
 # Load libraries
@@ -11,11 +12,13 @@ library(patchwork); library(ggnewscale)
 # Set plotting theme
 theme_set(theme_bw(base_size = 14))
 
-# Read in bioclimatic data for genotypes (and common garden locations)
-bioclim <- read_csv("~/Git/Bromecast/gardens/deriveddata/BioclimateOfOrigin_AllGenotypes.csv")
+# Read in bioclimatic data for genotypes (and common garden locations) from main
+# Bromecast repository
+bioclim <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/BioclimateOfOrigin_AllGenotypes.csv")
 
 ## Run PCA ####
 
+# Center and scale bioclimatic covariates
 bioclim[,6:ncol(bioclim)] <- apply(bioclim[,6:ncol(bioclim)], 2, scale)
 
 # Run PCA
@@ -127,5 +130,6 @@ genotypes_pc %>%
   dplyr::select(site_code, genotype, pc1 = PC1, pc2 = PC2) %>% 
   arrange(genotype) -> genotype_PCclimate
 
-# Remove all objects except climate data
+# Remove all objects except climate data -- this code gets sourced for main
+# analysis
 rm(list=setdiff(ls(), "genotype_PCclimate"))

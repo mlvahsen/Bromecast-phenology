@@ -1,19 +1,22 @@
+# Read in and format raw logger and snapshot temperature for common garden x
+# gravel combinations
+
+# Load libraries
 library(tidyverse); library(lubridate)
 
+# Read in snapshot temperatures
 temp_m <- read_csv("data/micrositetemperature.csv")
+# Read in logger data
 temp <- read_csv("data/BCtemploggers.csv")
 
-theme_set(theme_bw(base_size = 16))
-
-temp %>%
-  filter(Site == "Balzor" & Color == "Black") %>% 
-  arrange(Date) %>% 
-  print(n = Inf)
-# Baltzor data on black gravel goes until Jun-22
-
-# Cut all data to be between Jan-1 and Jun-22
+# Cut all data to be between Jan-1 and Jun-22 (where most sites x gravel have
+# continuous data and encompasses most of growing season)
 clean_dat <- temp %>% filter(Date >= "2022-01-01" & Date <= "2022-06-22")
 
+# Set plotting theme
+theme_set(theme_bw(base_size = 16))
+
+# Clean and format logger data for plotting. Create Figure S3
 clean_dat %>% 
   mutate(Site = case_when(Site == "Balzor" ~ "Cool aseasonal (BA)",
                           Site == "Cheyenne" ~ "Cool seasonal (CH)",
@@ -37,6 +40,7 @@ png("figs/FigS3_SoilTemp5cm.png", width = 8, height = 6, res = 300, units = "in"
 soil05
 dev.off()
 
+# Get mean and standard deviations for Table S1.
 clean_dat %>% 
   select(Site, Date, Color, Temp_C) %>% 
   spread(key = Color, value = Temp_C) %>% 
@@ -49,7 +53,7 @@ clean_dat %>%
             mean_diff = mean(Diff, na.rm = T),
             sd_diff = sd(Diff, na.rm = T)/sqrt(n()))
 
-# Update site labels
+# Clean and format snapshot data for plotting. Create Figure S4
 temp_m %>% 
   mutate(Site = case_when(Site == "Balzor" ~ "Cool aseasonal (BA)",
                           Site == "Cheyenne" ~ "Cool seasonal (CH)",
@@ -75,13 +79,6 @@ temp_m %>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_shape_manual(values = c(24,22,23,25), guide = "none") +
   guides(fill=guide_legend(override.aes=list(shape=21))) -> soil_temp
-
-temp_m %>% 
-  group_by(Site, Color) %>% 
-  summarize(mean = mean(SoilT_1cm, na.rm = T)) %>% 
-  spread(key = Color, value = mean) %>% 
-  mutate(diff = Black - White)
-
 
 png("figs/FigS2_soil_temp.png", width = 8, height = 6, res = 300, units = "in")
 soil_temp

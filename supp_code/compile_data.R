@@ -9,13 +9,14 @@ source(here("supp_code/climate_of_origin.R"))
 
 ## Read in Sheep Station data ####
 
-# Read in derived phenology data
-phen_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_growthphenology_with_harvest.csv")
-# Read in plant ID info
-ids_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_plantID.csv")
-# Read in flagging data
-flags_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_flags.csv")
-gardens <- read_csv("~/Git/Bromecast/gardens/rawdata/garden_treatments.csv")
+# Read in derived phenology data from main Bromecast repository
+phen_SS <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_growthphenology_with_harvest.csv")
+# Read in plant ID info from main Bromecast repository
+ids_SS <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_plantID.csv")
+# Read in flagging data from main Bromecast repository
+flags_SS <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_flags.csv")
+# Read in garden treatment data from main repository
+gardens <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/rawdata/garden_treatments.csv")
 # Merge together datasets
 phen_id_SS <- merge(phen_SS, ids_SS)
 
@@ -45,12 +46,12 @@ phen_SS %>%
 
 
 ## Read in Boise data ####
-# Read in derived phenology data
-phen_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_growthphenology_by_plantID.csv")
-# Read in plant ID info
-ids_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_plantID.csv")
-# Read in flagging data
-flags_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_flags.csv")
+# Read in derived phenology data from main Bromecast repository
+phen_Boise <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_growthphenology_by_plantID.csv")
+# Read in plant ID info from main Bromecast repository
+ids_Boise <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_plantID.csv")
+# Read in flagging data from main Bromecast repository
+flags_Boise <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_flags.csv")
 
 # Merge together datasets
 phen_id_Boise <- merge(phen_Boise, ids_Boise)
@@ -74,14 +75,13 @@ phen_Boise %>%
   mutate(plot_unique = as.factor(paste(site, block, plot, sep = "_")),
          block_unique = as.factor(paste(site, block, sep = "_")))-> phen_Boise
 
-
 ## Read in Cheyenne data ####
 # Read in derived phenology data
-phen_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_growthphenology_by_plantID.csv")
+phen_CH <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/CH2022_growthphenology_by_plantID.csv")
 # Read in plant ID info
-ids_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_plantID.csv")
+ids_CH <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/CH2022_plantID.csv")
 # Read in flagging data
-flags_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_flags.csv")
+flags_CH <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/CH2022_flags.csv")
 
 # Merge together datasets
 phen_id_CH <- merge(phen_CH, ids_CH)

@@ -1,21 +1,22 @@
-# Create a plot to depict when plants where surveyed for each site
+# Create Figure S3 which depicts when plants where surveyed for each site and
+# first flowered
 
 ## Load libraries ####
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
 library(here); library(readr); library(brms); library(RcppCNPy)
 
-## Source code for genotype climate of origin ####
+## Source code for compiled data ####
 source(here("supp_code/climate_of_origin.R"))
 
 ## Read in Sheep Station data ####
 
 # Read in derived phenology data
-phen_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_growthphenology_with_harvest.csv")
+phen_SS <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_growthphenology_with_harvest.csv")
 # Read in plant ID info
-ids_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_plantID.csv")
+ids_SS <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_plantID.csv")
 # Read in flagging data
-flags_SS <- read_csv("~/Git/Bromecast/gardens/deriveddata/SS2022_flags.csv")
-gardens <- read_csv("~/Git/Bromecast/gardens/rawdata/garden_treatments.csv")
+flags_SS <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/SS2022_flags.csv")
+gardens <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/rawdata/garden_treatments.csv")
 # Merge together datasets
 phen_id_SS <- merge(phen_SS, ids_SS)
 
@@ -43,14 +44,13 @@ phen_SS %>%
   mutate(plot_unique = as.factor(paste(site, block, plot, sep = "_")),
          block_unique = as.factor(paste(site, block, sep = "_")))-> phen_SS
 
-
 ## Read in Boise data ####
-# Read in derived phenology data
-phen_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_growthphenology_by_plantID.csv")
-# Read in plant ID info
-ids_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_plantID.csv")
-# Read in flagging data
-flags_Boise <- read_csv("~/Git/Bromecast/gardens/deriveddata/Boise2022_flags.csv")
+# Read in derived phenology data from main Bromecast repository
+phen_Boise <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_growthphenology_by_plantID.csv")
+# Read in plant ID info from main Bromecast repository
+ids_Boise <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_plantID.csv")
+# Read in flagging data from main Bromcast repository
+flags_Boise <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/Boise2022_flags.csv")
 
 # Merge together datasets
 phen_id_Boise <- merge(phen_Boise, ids_Boise)
@@ -74,14 +74,13 @@ phen_Boise %>%
   mutate(plot_unique = as.factor(paste(site, block, plot, sep = "_")),
          block_unique = as.factor(paste(site, block, sep = "_")))-> phen_Boise
 
-
 ## Read in Cheyenne data ####
 # Read in derived phenology data
-phen_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_growthphenology_by_plantID.csv")
+phen_CH <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/CH2022_growthphenology_by_plantID.csv")
 # Read in plant ID info
-ids_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_plantID.csv")
+ids_CH <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/CH2022_plantID.csv")
 # Read in flagging data
-flags_CH <- read_csv("~/Git/Bromecast/gardens/deriveddata/CH2022_flags.csv")
+flags_CH <- read_csv("https://raw.githubusercontent.com/pbadler/bromecast-data/main/gardens/deriveddata/CH2022_flags.csv")
 
 # Merge together datasets
 phen_id_CH <- merge(phen_CH, ids_CH)
@@ -106,24 +105,29 @@ phen_CH %>%
 ## Merge datasets together ####
 phen <- rbind(phen_SS %>% dplyr::select(-tillers), phen_Boise, phen_CH)
 
+# Calculate first day of flowering by plant
 phen %>%
   filter(v %in% c("FG", "FP", "FB", "FX")) %>%
   group_by(plantID) %>%
   # Gets minimum day of flowering
   slice(which.min(jday)) -> phen_flower
 
+# Calculate first dat of flowering by site
 phen_flower %>% 
   group_by(site) %>% 
   slice(which.min(jday)) %>% 
   select(site, jday) -> first_flower_site
 
+# Get ranges of sampling starting after day = 50 (spring sampling)
 phen %>% filter(site == "SS" & jday > 50) %>% pull(jday) %>% range(na.rm = T)
 phen %>% filter(site == "WI" & jday > 50) %>% pull(jday) %>% range(na.rm = T)
 phen %>% filter(site == "BA" & jday > 50) %>% pull(jday) %>% range(na.rm = T)
 phen %>% filter(site == "CH" & jday > 50) %>% pull(jday) %>% range(na.rm = T)
 
+# Set color scheme
 colors <- c("#44AA99", "#332288", "#6699CC", "#AA4499")
 
+# Create sampling frequency plot (Figure S3)
 phen %>% 
   group_by(jday, site) %>% 
   summarize(n = n()) %>% 
