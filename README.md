@@ -15,4 +15,4 @@ BlueGenes
 └─── supp_code
 └─── supp_data
 ```
-The main analysis file code/lmm.R will need to be run in order to generate outputs needed for subsequent analyses, graphs, and tables. Output from the models (*i.e.*, the model objects) will be stored in the outputs folder which are then accessed by subsequent scripts.
+The main analysis file ```code/lmm.R``` will need to be run in order to generate outputs needed for subsequent analyses, graphs, and tables. Output from the models (*i.e.*, the model objects) will be stored in ```outputs/``` which are then accessed by subsequent scripts.
