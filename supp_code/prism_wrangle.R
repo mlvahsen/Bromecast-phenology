@@ -60,7 +60,7 @@ site_temp %>%
             # relationships as means)
             gdd = sum(tmean)) -> site_temp_summary
 
-write_csv(site_temp_summary, "data/site_tmean.csv")
+write_csv(site_temp_summary, "supp_data/site_tmean.csv")
 
 ## Collection site information - tmax ####
 

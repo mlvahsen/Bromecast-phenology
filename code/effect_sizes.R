@@ -1,5 +1,9 @@
+# This code calculates estimates and confidence intervals from the model that
+# are reported in text. It also creates Figure S6.
 library(tidybayes)
 
+# Read in lmm object
+brms_lin_nokin <- read_rds("outputs/phenology_nokin_final.rds")
 as_draws_df(brms_lin_nokin) -> obj
 
 # Store parameters to unscale later
@@ -41,6 +45,7 @@ quantile(latest - earliest, c(0.5, 0.025, 0.975))
 site_pc1 <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("pc1_sc", "site"))
 site_pc2 <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("pc2_sc", "site"))
   
+# Create Figure S6
 tibble(pc1_sc = site_pc1$data$x,
        jday = site_pc1$data$predicted,
        site = site_pc1$data$group,

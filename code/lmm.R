@@ -1,4 +1,5 @@
-# This code fits the linear model for flowering time
+# This code fits the linear models for flowering time: both version with and
+# without kinship matrix included. This code also creates Figs 3, 4, 5, S4, S5
 
 # Load libraries
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
@@ -20,43 +21,6 @@ sd_pc1 <- attr(scale(phen_flower_kin$pc1),"scaled:scale")
 mean_pc2 <- attr(scale(phen_flower_kin$pc2),"scaled:center")
 sd_pc2 <- attr(scale(phen_flower_kin$pc2),"scaled:scale")
 
-# ## Check for effect of growout in Sheep Station data ####
-# phen_flower_kin %>% 
-#   filter(site == "SS") -> phen_SS_test
-# 
-# library(lmerTest)
-# ss_mod_growout <- lmer(jday ~ density * gravel * pc1_sc + density * gravel * pc2_sc +
-#                          (1 + density + gravel || genotype) +
-#                          (1 | plot_unique) + (1|block_unique) + growout, data = phen_SS_test)
-# 
-# summary(ss_mod_growout)
-# No effect of growout
-# growout1 -0.16106    0.46462 2391.36210  -0.347  0.72888    
-
-# ## Check effect of herbivorized plants on analysis ####
-# # Fit linear model without herbivory plants and with herbivory plants
-# phen_flower_kin %>% 
-#   filter(herbivory == "Y") %>% 
-#   group_by(site, density) %>% 
-#   summarize(n = n()) # Most of these are from Sheep Station
-# 
-# # Fit linear model with all data
-# mod_all <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
-#                   (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin)
-# 
-# emmeans::emmeans(mod_all, ~site)
-# 
-# # Drop all herbivory instances
-# phen_flower_kin %>% 
-#   filter(herbivory != "Y") -> phen_flower_kin_noherb
-# 
-# # Refit model
-# mod_noherb <- lmer(jday ~ density*gravel*pc1 + density*gravel*pc2 + site*pc1 + site*pc2 +
-#                      (density+gravel+site|genotype) + (1|block_unique) + (1|plot_unique), data = phen_flower_kin_noherb)
-# 
-# # Seems like the results are basically the same so fit the model with all of the
-# # data for now
-# 
 ## Fit Bayesian model ####
 # Fit Bayesian linear model
 
@@ -65,6 +29,7 @@ start <- Sys.time()
 # Fit with summed contrasts to more easily infer global means
 options(contrasts = c("contr.sum", "contr.poly"))
 
+# Fit version of the model with kinship matrix
 brms_lin <- brm(
   jday ~ 0 + Intercept + density * gravel * pc1_sc + density * gravel * pc2_sc +
     site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || gr(genotype, cov = Amat)) +
@@ -77,6 +42,7 @@ brms_lin <- brm(
   seed = 4685
 )
 
+# Fit version of the model with out kinship matrix
 brms_lin_nokin <- brm(
   jday ~ 0 + Intercept + density * gravel * pc1_sc + density * gravel * pc2_sc +
     site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || genotype) +
@@ -89,10 +55,13 @@ brms_lin_nokin <- brm(
   seed = 4685
 )
 
-#write_rds(brms_lin, "~/Desktop/phenology_kin_final.rds")
-#write_rds(brms_lin_nokin, "~/Desktop/phenology_nokin_final.rds")
+# Save model objects for use later
+#write_rds(brms_lin, "outputs/phenology_kin_final.rds")
+#write_rds(brms_lin_nokin, "outputs/phenology_nokin_final.rds")
 
-brms_lin_nokin <- read_rds("~/Desktop/phenology_nokin_final.rds")
+# Read in Rdata object of no kinship matrix model (model that we are doing most
+# of our inference from)
+brms_lin_nokin <- read_rds("outputs/phenology_nokin_final.rds")
 
 ## Create graphics - Model checking ####
 
@@ -129,6 +98,7 @@ tibble(predicted = colMeans(ppreds),
        pred_lower = apply(ppreds, 2, quantile, 0.025),
        pred_upper = apply(ppreds, 2, quantile, 0.975)) -> pred_obs_plot
 
+# Make Figure S4
 pred_obs_plot %>% 
   ggplot(aes(x = predicted, y = observed)) +
   geom_point(size = 3, alpha = 0.5) +
@@ -153,8 +123,10 @@ theme_set(theme_bw(base_size = 16))
 # Get marginal means for PC x density x gravel interaction
 pc1_plot <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("pc1_sc", "density", "gravel"))
 pc2_plot <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("pc2_sc", "density", "gravel"))
+# Get marginal means for site 
 site_plot <- sjPlot::plot_model(brms_lin_nokin, type = "emm", terms = c("site"))
 
+# Formatting and relabeling site level information
 tibble(jday = site_plot$data$predicted,
        site = c("Cold\naseasonal (SS)", "Cool\nseasonal (CH)",
                 "Hot\nseasonal (WI)", "Cool\naseasonal (BA)"),
@@ -165,6 +137,7 @@ tibble(jday = site_plot$data$predicted,
                                         "Cool\naseasonal (BA)",
                                         "Hot\nseasonal (WI)")))-> sum_stat_site
 
+# Make Figure 3a
 phen_flower_kin %>% 
   mutate(site = case_when(site == "SS" ~ "Cold\naseasonal (SS)",
                           site == "CH" ~ "Cool\nseasonal (CH)",
@@ -189,6 +162,7 @@ phen_flower_kin %>%
   scale_color_manual(values = c("#332288","#AA4499", "#44AA99", "#6699CC")) +
   scale_fill_manual(values = c("#332288","#AA4499", "#44AA99", "#6699CC")) -> site_subplot
 
+# Create plotting dataset that is formatted 
 phen_flower_kin_plot <- phen_flower_kin %>% 
   mutate(gravel = ifelse(gravel == "white", "High (black)", "Low (white)"),
          density = ifelse(density == "hi", "High", "Low"),
@@ -197,6 +171,7 @@ phen_flower_kin_plot <- phen_flower_kin %>%
                                  site == "WI" ~ "Hot seasonal (WI)",
                                  site == "BA" ~ "Cool aseasonal (BA)"))
 
+# Create PC1 predictions part of Figure 3
 tibble(pc = pc1_plot$data$x * sd_pc1 + mean_pc1,
        jday = pc1_plot$data$predicted,
        lower = pc1_plot$data$conf.low,
@@ -207,6 +182,7 @@ tibble(pc = pc1_plot$data$x * sd_pc1 + mean_pc1,
          density = ifelse(density == "hi", "High", "Low"),
          pc_type = "PC 1 (cool & wet → hot & dry)") -> pc1_dat
 
+# Create PC2 predictions part of Figure 3
 tibble(pc = pc2_plot$data$x * sd_pc2 + mean_pc2,
        jday = pc2_plot$data$predicted,
        lower = pc2_plot$data$conf.low,
@@ -217,6 +193,7 @@ tibble(pc = pc2_plot$data$x * sd_pc2 + mean_pc2,
          density = ifelse(density == "hi", "High", "Low"),
          pc_type = "PC 2 (low → high seasonality)") -> pc2_dat
 
+# Create Figure 3b
 rbind(pc1_dat, pc2_dat) %>% 
   ggplot(aes(pc, jday, color = density, fill = density)) +
   geom_line(aes(linetype = density), linewidth = 0.8) +
@@ -337,19 +314,19 @@ for (i in 1:10){
   upper_pc2[i] <- quantile(temp, 0.975)
 }
 
-# Bring all PC1 prediction data together into one tibble
+# Bring all PC1 prediction data together into one tibble (unscale + recenter)
 tibble(pc1 = new_dat_pc1 * sd_pc1 + mean_pc1,
        jday = pred_pc1,
        lower = lower_pc1,
        upper = upper_pc1) -> sum_stat_pc1
 
-# Bring all PC2 prediction data together into one tibble
+# Bring all PC2 prediction data together into one tibble (unscale and recenter)
 tibble(pc2 = new_dat_pc2 * sd_pc2 + mean_pc2,
        jday = pred_pc2,
        lower = lower_pc2,
        upper = upper_pc2) -> sum_stat_pc2
 
-# Make PC1 plot
+# Make PC1 plot (Fig 4a)
 preds_by_genotype %>% 
   ggplot(aes(x = pc1, y = jday)) +
   geom_point(shape = 21, size = 3, alpha = 0.5, fill = "black", stroke = 1.5) +
@@ -361,7 +338,7 @@ preds_by_genotype %>%
        fill = "") +
   ylim(139, 170) -> pc1_genotype_subplot
 
-# Make PC2 plot
+# Make PC2 plot (Fig 4b)
 preds_by_genotype %>% 
   ggplot(aes(x = pc2, y = jday)) +
   geom_point(shape = 21, size = 3, alpha = 0.5, fill = "black", stroke = 1.5) +
@@ -483,7 +460,7 @@ phen_flower_kin$site <- factor(phen_flower_kin$site, levels = c("CH", "WI", "SS"
 # )
 
 #write_rds(brms_lin_CHlevel, "~/Desktop/phenology_nokin_final_CH.rds")
-brms_lin_CHlevel <- read_rds("~/Desktop/phenology_nokin_final_CH.rds")
+brms_lin_CHlevel <- read_rds("outputs/phenology_nokin_final_CH.rds")
 
 # Pull draws from model fit
 obj_CH <- as_draws_df(brms_lin_CHlevel)
@@ -569,6 +546,7 @@ design <- c(
   area(7, 5, 7, 6)
 )
 
+# Visualize plot layout
 # plot(design)
 
 png("figs/Fig5_gxe.png", height = 8.73, width = 12.66, res = 300, units = "in")

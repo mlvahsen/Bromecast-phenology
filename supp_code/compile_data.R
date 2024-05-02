@@ -121,7 +121,6 @@ phen_flower %>%
   mutate(herbivory = ifelse(plantID %in% herbivory_plants, "Y", "N")) -> phen_flower
 
 ## Read in kinship data and subset flowering data to match ####
-## Kinship stuff ####
 
 # Read in data that matches kinship matrix position and genotype ID
 kinshipIDs <- read_csv("data/93cg_genotypes.csv")
@@ -131,32 +130,10 @@ kinshipIDs %>%
 
 # Read in kinship matrix
 kinship <- npyLoad("data/93BRTEcg.kinship.npy")
-#kinship_og <- npyLoad("data/93BRTEcg.kinship_og.npy")
-
-#corrplot::corrplot(cor(kinship))
-#corrplot::corrplot(cor(kinship_og))
-
-# Read in info on order of genotypes for kinship matrix
-# kinship_order <- read_csv("data/BRTEcg_genotypesCode.csv") %>%
-#   arrange(IBSmatrix_order) 
 
 # Put genotype numbers on rows and columns
 rownames(kinship) <- as.factor(kinshipIDs$genotype)
 colnames(kinship) <- as.factor(kinshipIDs$genotype)
-
-# kinshipIDs %>% 
-#   # Two genotypes are currently absent from the kinship matrix
-#   filter(source != "Adler09" & source != "Shriver01") %>% 
-#   arrange(kinshipID)-> genotypes_93
-
-# Read in kinship matrix
-# setwd("~/Git/Bromecast/gardens/rawdata/")
-# kinship93BRTE <- npyLoad("93BRTEcg.kinship.npy")
-# setwd("~/Git/Bromecast-phenology/")
-
-# Put genotype numbers on rows and columns
-# colnames(kinship93BRTE) <- as.factor(genotypes_93$genotype)
-# rownames(kinship93BRTE) <- as.factor(genotypes_93$genotype)
 
 # Subset phen data for only genotypes that we have kinship data for
 phen_flower %>% 
