@@ -61,7 +61,7 @@ write_rds(brms_lin_nokin, "outputs/phenology_nokin_final.rds")
 
 # Read in Rdata object of no kinship matrix model (model that we are doing most
 # of our inference from)
-# brms_lin_nokin <- read_rds("outputs/phenology_nokin_final.rds")
+brms_lin_nokin <- read_rds("outputs/phenology_nokin_final.rds")
 
 ## Create graphics - Model checking ####
 
