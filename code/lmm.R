@@ -56,12 +56,12 @@ brms_lin_nokin <- brm(
 )
 
 # Save model objects for use later
-#write_rds(brms_lin, "outputs/phenology_kin_final.rds")
-#write_rds(brms_lin_nokin, "outputs/phenology_nokin_final.rds")
+write_rds(brms_lin, "outputs/phenology_kin_final.rds")
+write_rds(brms_lin_nokin, "outputs/phenology_nokin_final.rds")
 
 # Read in Rdata object of no kinship matrix model (model that we are doing most
 # of our inference from)
-brms_lin_nokin <- read_rds("outputs/phenology_nokin_final.rds")
+# brms_lin_nokin <- read_rds("outputs/phenology_nokin_final.rds")
 
 ## Create graphics - Model checking ####
 
@@ -459,8 +459,8 @@ phen_flower_kin$site <- factor(phen_flower_kin$site, levels = c("CH", "WI", "SS"
 #   seed = 4685
 # )
 
-#write_rds(brms_lin_CHlevel, "~/Desktop/phenology_nokin_final_CH.rds")
-brms_lin_CHlevel <- read_rds("outputs/phenology_nokin_final_CH.rds")
+write_rds(brms_lin_CHlevel, "~/Desktop/phenology_nokin_final_CH.rds")
+#brms_lin_CHlevel <- read_rds("outputs/phenology_nokin_final_CH.rds")
 
 # Pull draws from model fit
 obj_CH <- as_draws_df(brms_lin_CHlevel)
