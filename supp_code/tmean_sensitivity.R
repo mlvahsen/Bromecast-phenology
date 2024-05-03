@@ -87,7 +87,7 @@ preds_by_genotype %>%
 site_preds <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("site"))
 
 # Read in tmeans for each site (file created in prism_wrangle.R)
-site_tmean <- read_csv("data/site_tmean.csv")
+site_tmean <- read_csv("supp_data/site_tmean.csv")
 
 # Merge temperature data with predicted means data for sites
 tibble(site_code = rep(c("SS", "BA", "WI", "CH")),
@@ -135,8 +135,8 @@ climate_sens %>%
   theme(legend.position = "top",
         axis.title.x.bottom = element_text(color = "#fdae61", face = "bold", size = 14)) +
   theme(plot.margin = unit(c(1,1,2,1), "lines")) +
-  annotation_custom(text_x2, xmin=0,xmax=17.5,ymin=77,ymax=77)+
+  annotation_custom(text_x2, xmin=0,xmax=16,ymin=80,ymax=80)+
   coord_cartesian(clip = "off") +
   scale_x_continuous(breaks = seq(3,12,by=3))+
-  annotate("text", label = expression(paste(beta[temp:env], " = 5.8 (1.5, 10.0)")), x = 11.9, y = 205, size = 5) 
+  annotate("text", label = expression(paste(beta[temp:env], " = 5.8 (1.5, 10.0)")), x = 11, y = 205, size = 5) 
 dev.off()
