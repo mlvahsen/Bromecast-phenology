@@ -6,7 +6,7 @@ All code was run in R version 4.3.2 (2023-10-31). Necessary packages to run scri
 
 All R scripts are written assuming the below organizational structure:
 ```
-BlueGenes
+Bromecast-phenology
 │   README.md
 └─── code
 └─── data
