@@ -20,11 +20,9 @@ genotype_tmax <- read_csv("supp_data/genotype_tmax_norms.csv")
 # Get soil temperature data
 temp <- read_csv("data/BCtemploggers.csv")
 
-# Remove Sheep Station white gravel which did not have continuous data. Restrict
-# to Jan - Jun 2021.
+# Restrict to Jan - Apr 2021
 temp %>% 
-  filter(Date > "2022-01-01" & Date < "2022-05-01") %>% 
-  filter(Site != "Sheep" | Color != "White") -> clean_dat
+  filter(Date > "2022-01-01" & Date < "2022-05-01") -> clean_dat
 
 # Create soil to air temperature function based on supplemental figure from
 # Petrie et al. (2020, Climate Change)
@@ -160,16 +158,16 @@ confint(mod) # Get confidence intervals
 
 # Slope of local adaptation is the slope coefficient plus interaction term
 coef(mod)[2] + coef(mod)[4]
-# -1.036538
+# -1.036537
 # One degree increase in temp means ~1 additional day earlier
 
 # Slope of plasticity is the slope coefficient 
 coef(mod)[2] 
-# -5.374806
+# -5.304084 
 # One degree increase in temp means an additional ~5 days earlier
 
 # Make Figure 6
-text_x2 <- grid::textGrob("Avg. maximum temperature Jan - April 1981-2010 (°C)",
+text_x2 <- grid::textGrob("Avg. maximum temperature Jan - Apr 1981-2010 (°C)",
                           gp=gpar(fontsize=14, fontface="bold", col = "#2c7bb6"))
 
 png("figs/Fig6_relative_sensitivies.png", width = 6, height = 5, res = 300, units = "in")
@@ -180,7 +178,7 @@ climate_sens %>%
   geom_point(size = 3, shape = 21, color = "black", alpha = 0.8) +
   scale_color_manual(values = c("#fdae61", "#2c7bb6")) +
   scale_fill_manual(values = c("#fdae61", "#2c7bb6")) +
-  labs(x = "Mean temperature October 2021 - June 2022 (°C)",
+  labs(x = "Maximum temperature Jan 2022 - Apr 2022 (°C)",
        y = "First day of flowering",
        color = "",
        fill = "") +
@@ -191,5 +189,5 @@ climate_sens %>%
   annotation_custom(text_x2, xmin=0,xmax=21.5,ymin=103,ymax=103)+
   ylim(118, 175) +
   coord_cartesian(clip = "off") +
-  annotate("text", label = expression(paste(beta[temp:env], " = 4.3 (2.7, 6.0)")), x = 15.2, y = 175, size = 5) 
+  annotate("text", label = expression(paste(beta[temp:env], " = 4.3 (2.7, 5.8)")), x = 15.2, y = 175, size = 5) 
 dev.off()
