@@ -78,40 +78,42 @@ genotypes_with_gps %>%
 brms_lin <- read_rds("outputs/phenology_nokin_final.rds")
 as_draws_df(brms_lin) -> obj
 
+# Get genotype random intercept draws only
 obj %>% 
-  dplyr::select(contains("r_genotype") & contains("Intercept")) %>% 
-  gather(key = genotype, value = intercept) %>% 
-  mutate(genotype = parse_number(genotype)) %>% 
-  group_by(genotype) %>% 
-  summarize(mean = mean(intercept)) %>% 
-  arrange(genotype) %>% ungroup()-> random_intercepts
+  dplyr::select(contains("r_genotype") & contains("Intercept")) -> r_intercepts
+  
+# Rename columns with genotype number only
+colnames(r_intercepts) <- parse_number(colnames(r_intercepts))
+  
+# Reorder columns to be in genotype number order
+r_intercepts[,order(parse_number(colnames(r_intercepts)))] -> r_intercepts
 
+# Get scaled values of PC axes
 phen_flower_kin %>%
   mutate(pc1_sc = scale(phen_flower_kin$pc1)[,1],
          pc2_sc = scale(phen_flower_kin$pc2)[,1]) %>% 
-  group_by(genotype) %>% 
-  summarize(pc1_sc = mean(pc1_sc),
-            pc2_sc = mean(pc2_sc)) %>% 
+  select(genotype, pc1_sc, pc2_sc) %>% 
+  distinct() %>% 
   mutate(genotype = as.numeric(as.character(genotype))) %>% 
-  arrange(genotype) %>% ungroup() -> pcs
+  arrange(genotype) -> pcs
 
-# Get predicted means by genotype
-pred <- mean(obj$b_Intercept) + random_intercepts$mean + pcs$pc1_sc * mean(obj$b_pc1_sc) + pcs$pc2_sc * mean(obj$b_pc2_sc)
+# Get predicted means and CIs for each genotype
+pred_all <- matrix(NA, nrow = length(obj$b_Intercept), ncol = length(unique(phen_flower_kin$genotype)))
 
-# Store parameters that were used for scaling
-mean_pc1 <- attr(scale(phen_flower_kin$pc1),"scaled:center")
-sd_pc1 <- attr(scale(phen_flower_kin$pc1),"scaled:scale")
-mean_pc2 <- attr(scale(phen_flower_kin$pc2),"scaled:center")
-sd_pc2 <- attr(scale(phen_flower_kin$pc2),"scaled:scale")
+for(i in 1:length(unique(phen_flower_kin$genotype))){
+  pred_all[,i] <- obj$b_Intercept + as.data.frame(r_intercepts)[,i] + pcs$pc1_sc[i] * obj$b_pc1_sc + pcs$pc2_sc[i] * obj$b_pc2_sc
+}
 
-# Get PC1 and PC2 values
-cbind(pcs, jday = pred) -> preds_by_genotype
-preds_by_genotype$pc1 <- preds_by_genotype$pc1_sc * sd_pc1 + mean_pc1
-preds_by_genotype$pc2 <- preds_by_genotype$pc2_sc * sd_pc2 + mean_pc2
+tibble(genotype = as.factor(parse_number(colnames(r_intercepts))),
+       pred_mean = colMeans(pred_all),
+       pred_upper = apply(pred_all, 2, quantile, probs = 0.975),
+       pred_lower = apply(pred_all, 2, quantile, probs = 0.025),
+       variance = apply(pred_all, 2, var)) %>% 
+  merge(phen_flower_kin %>% select(genotype, site_code) %>% distinct()) %>% 
+  merge(genotype_tmax %>% select(site_code, tmax_mean)) -> genotype_tmax
 
-# Merge predicted flowering dates with max temperature data
-preds_by_genotype %>% 
-  merge(genotypes_tmax) -> genotypes_tmax
+# Calculate relationship between CI and variance
+ci_mod <- lm(variance ~ diff, data = genotype_tmax %>% mutate(diff = (pred_upper - pred_lower)^2))
 
 # Get predicted means for each site gravel combo
 site_gravel_preds <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("site", "gravel"))
@@ -120,20 +122,25 @@ site_gravel_preds <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("site"
 # growing season)
 tibble(site = rep(c("SS", "BA", "WI", "CH"), each = 2),
        color = site_gravel_preds$data$group,
-       jday = site_gravel_preds$data$predicted) %>% 
+       pred_mean = site_gravel_preds$data$predicted,
+       pred_lower = site_gravel_preds$data$conf.low,
+       pred_upper = site_gravel_preds$data$conf.high) %>%
+  mutate(variance = coef(ci_mod)[1] + coef(ci_mod)[2] * (pred_upper - pred_lower)^2) %>% 
   merge(site_tmax) -> site_tmax_all
 
 # Clean up genotype data so it can be merged with cg site data
-genotypes_tmax %>% 
+genotype_tmax %>% 
   mutate(id = paste("genotype", genotype, sep = "_"),
          type = "Source environment") %>% 
-  dplyr::select(jday = jday, tmax = tmax_mean, id, type) -> genotypes_tmax_tomerge
+  dplyr::select(jday = pred_mean, tmax = tmax_mean, id, type, variance,
+                upper = pred_upper, lower = pred_lower) -> genotypes_tmax_tomerge
 
 # Clean up site data so it can be merged with genotype data
 site_tmax_all %>% 
   mutate(id = paste(site, color, sep = "_"),
          type = "Current environment") %>% 
-  dplyr::select(jday = jday, tmax = tmax_mean, id, type) -> site_tmax_tomerge
+  dplyr::select(jday = pred_mean, tmax = tmax_mean, id, type, variance,
+                upper = pred_upper, lower = pred_lower) -> site_tmax_tomerge
 
 # Merge site and genotype info into one dataset
 climate_sens <- rbind(genotypes_tmax_tomerge, site_tmax_tomerge)
@@ -149,21 +156,22 @@ climate_sens %>%
                                  grepl("white", id) ~ "Low temp.\n(white gravel)",
                                  T ~ "genotype")) -> climate_sens
 
-# Fit linear model with treatment contrasts and get CIs for interaction
+# Fit weighted linear model with treatment contrasts and get CIs for
+# interaction. Weights are the inverse of variance.
 options(contrasts = c("contr.treatment", "contr.poly"))
 climate_sens$type <- factor(climate_sens$type, levels = c("Current environment", "Source environment"))
-mod <- lm(jday ~ tmax * type, data = climate_sens)
+mod <- lm(jday ~ tmax * type, data = climate_sens, weights = 1/variance)
 summary(mod) # Get coefficients
 confint(mod) # Get confidence intervals
 
 # Slope of local adaptation is the slope coefficient plus interaction term
 coef(mod)[2] + coef(mod)[4]
-# -1.036537
+# -1.030154 
 # One degree increase in temp means ~1 additional day earlier
 
 # Slope of plasticity is the slope coefficient 
 coef(mod)[2] 
-# -5.304084 
+# -5.288871 
 # One degree increase in temp means an additional ~5 days earlier
 
 # Make Figure 6
@@ -173,9 +181,10 @@ text_x2 <- grid::textGrob("Avg. maximum temperature Jan - Apr 1981-2010 (°C)",
 png("figs/Fig6_relative_sensitivies.png", width = 6, height = 5, res = 300, units = "in")
 climate_sens %>% 
   ggplot(aes(x = tmax, y = jday, color = type, fill = type)) +
-  geom_point(size = 3) +
-  geom_smooth(method = "lm") + 
-  geom_point(size = 3, shape = 21, color = "black", alpha = 0.8) +
+  geom_segment(aes(x = tmax, xend = tmax, y = lower, yend = upper), color = "black") +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", mapping = aes(weight = 1/variance)) + 
+  geom_point(size = 2, shape = 21, color = "black", alpha = 0.8) +
   scale_color_manual(values = c("#fdae61", "#2c7bb6")) +
   scale_fill_manual(values = c("#fdae61", "#2c7bb6")) +
   labs(x = "Maximum temperature Jan 2022 - Apr 2022 (°C)",
@@ -189,5 +198,5 @@ climate_sens %>%
   annotation_custom(text_x2, xmin=0,xmax=21.5,ymin=103,ymax=103)+
   ylim(118, 175) +
   coord_cartesian(clip = "off") +
-  annotate("text", label = expression(paste(beta[temp:env], " = 4.3 (2.7, 5.8)")), x = 15.2, y = 175, size = 5) 
+  annotate("text", label = expression(paste(beta[temp:env], " = 4.3 (3.2, 5.4)")), x = 15.2, y = 175, size = 5) 
 dev.off()
