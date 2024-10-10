@@ -7,7 +7,8 @@
 # Load libraries
 library(tidyverse); library(here);
 library(geosphere); library(usmap);
-library(patchwork); library(ggnewscale)
+library(patchwork); library(ggnewscale);
+library(factoextra)
 
 # Set plotting theme
 theme_set(theme_bw(base_size = 14))
@@ -26,6 +27,10 @@ pca_out <- prcomp(bioclim[,6:ncol(bioclim)])
 
 # Get percent explained by each PC axis
 round(pca_out$sdev^2 / sum(pca_out$sdev^2),3) -> perc_explained
+
+# Get which variables are contributing most to each PC axis
+get_pca_var(pca_out)$contrib[,1]
+sort(get_pca_var(pca_out)$contrib[,2], decreasing = T)
 
 # Bind PC axis data with original data
 cbind(bioclim, pca_out$x) -> bioclim_pc

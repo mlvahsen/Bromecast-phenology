@@ -4,7 +4,8 @@
 # Load libraries
 library(tidyverse); library(mgcv); library(gratia); library(geomtextpath);
 library(here); library(readr); library(brms); library(RcppCNPy); library(lme4);
-library(patchwork); library(bayesplot); library(usmap); library(egg)
+library(patchwork); library(bayesplot); library(usmap); library(egg);
+library(RVAideMemoire)
 
 # Source in compiled data for the model
 source(here("supp_code", "compile_data.R"))
@@ -48,13 +49,36 @@ brms_lin_nokin <- brm(
     site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || genotype) +
     (1 | plot_unique),
   data = phen_flower_kin,
-  data2 = list(Amat = kin),
   family = gaussian(),
   chains = 3, cores = 1, iter = 7500,
   # Set seed for reproducibility
   seed = 4685
 )
 
+# Fit version of the model with out kinship matrix and without source climate to
+# quantify how much variance it explains
+brms_lin_nokin_nosource <- brm(
+  jday ~ 0 + Intercept + density * gravel + site +
+    (1 + density + gravel + site || genotype) +
+    (1 | plot_unique),
+  data = phen_flower_kin,
+  family = gaussian(),
+  chains = 3, cores = 1, iter = 2000,
+  # Set seed for reproducibility
+  seed = 4685
+)
+
+# Fit version of the model with out kinship matrix and without current climate to
+# quantify how much variance it explains
+brms_lin_nokin_nocurrent <- brm(
+  jday ~ 0 + Intercept + pc1 + pc2 + (1 | genotype) + (1 | plot_unique),
+  data = phen_flower_kin,
+  data2 = list(Amat = kin),
+  family = gaussian(),
+  chains = 3, cores = 1, iter = 2000,
+  # Set seed for reproducibility
+  seed = 4685
+)
 # Save model objects for use later
 write_rds(brms_lin, "outputs/phenology_kin_final.rds")
 write_rds(brms_lin_nokin, "outputs/phenology_nokin_final.rds")
@@ -376,6 +400,9 @@ mean(obj$b_Intercept) - mean(obj$b_gravel1) +
   random_intercepts$mean - random_slopes_gravel$effect_gravel +
     mean(obj$b_pc1_sc)*pcs$pc1_sc + mean(obj$b_pc2_sc)*pcs$pc2_sc -> white_genotype
 
+# Get Spearman's rank correlation for black and white gravel
+spearman.ci(black_genotype, white_genotype)
+
 # Make inset histogram of different slopes
 tibble(gravel_diff = white_genotype - black_genotype) %>% 
   ggplot(aes(x = gravel_diff)) +
@@ -403,6 +430,9 @@ mean(obj$b_Intercept) + mean(obj$b_density1) +
 mean(obj$b_Intercept) - mean(obj$b_density1) +
       random_intercepts$mean - random_slopes_density$effect_density +
       mean(obj$b_pc1_sc)*pcs$pc1_sc + mean(obj$b_pc2_sc)*pcs$pc2_sc -> low_genotype
+
+# Get Spearman's rank correlation for high and low gravel
+spearman.ci(high_genotype, low_genotype)
 
 # Make inset histogram of different slopes
 tibble(density_diff = low_genotype - high_genotype) %>% 
@@ -459,8 +489,8 @@ phen_flower_kin$site <- factor(phen_flower_kin$site, levels = c("CH", "WI", "SS"
 #   seed = 4685
 # )
 
-write_rds(brms_lin_CHlevel, "~/Desktop/phenology_nokin_final_CH.rds")
-#brms_lin_CHlevel <- read_rds("outputs/phenology_nokin_final_CH.rds")
+#write_rds(brms_lin_CHlevel, "~/Desktop/phenology_nokin_final_CH.rds")
+brms_lin_CHlevel <- read_rds("outputs/phenology_nokin_final_CH.rds")
 
 # Pull draws from model fit
 obj_CH <- as_draws_df(brms_lin_CHlevel)
@@ -487,6 +517,17 @@ obj_CH %>%
 mean(obj_CH$b_Intercept) + mean(obj_CH$b_site1) + 
   random_intercepts_CH$mean + random_slopes_CH$effect_CH +
   mean(obj_CH$b_pc1_sc)*pcs$pc1_sc + mean(obj_CH$b_pc2_sc)*pcs$pc2_sc -> CH_genotype
+
+# Get Spearman's rank correlation for all pairwise site combinations 
+c(spearman.ci(SS_genotype, BA_genotype)$estimate,
+spearman.ci(SS_genotype, WI_genotype)$estimate,
+spearman.ci(SS_genotype, CH_genotype)$estimate,
+spearman.ci(BA_genotype, WI_genotype)$estimate,
+spearman.ci(BA_genotype, CH_genotype)$estimate,
+spearman.ci(CH_genotype, WI_genotype)$estimate) -> site_rhos
+
+mean(site_rhos)
+sd(site_rhos) 
 
 # Make inset histogram of different slopes
 tibble(site_diff = SS_genotype - CH_genotype) %>% 
