@@ -63,7 +63,7 @@ tibble(pc1_sc = site_pc1$data$x,
   ggplot(aes(x = pc1, y = jday, color = site)) +
   geom_line() + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = site), alpha = 0.2, color = NA) +
-  labs(x = "PC 1 (cool & wet → hot & dry)", y = "Day of year", color = "Site", fill = "Site") +
+  labs(x = "PC 1 (cool & wet → hot & dry)", y = "First day of flowering", color = "Site", fill = "Site") +
   ggtitle("") +
   scale_color_manual(values = c("#332288", "#AA4499", "#44AA99", "#6699CC")) +
   scale_fill_manual(values = c("#332288", "#AA4499", "#44AA99", "#6699CC")) -> site_pc1_plot

@@ -43,7 +43,7 @@ brms_lin <- brm(
   seed = 4685
 )
 
-# Fit version of the model with out kinship matrix
+# Fit version of the model without kinship matrix
 brms_lin_nokin <- brm(
   jday ~ 0 + Intercept + density * gravel * pc1_sc + density * gravel * pc2_sc +
     site * pc1_sc + site * pc2_sc + (1 + density + gravel + site || genotype) +
@@ -55,30 +55,6 @@ brms_lin_nokin <- brm(
   seed = 4685
 )
 
-# Fit version of the model with out kinship matrix and without source climate to
-# quantify how much variance it explains
-brms_lin_nokin_nosource <- brm(
-  jday ~ 0 + Intercept + density * gravel + site +
-    (1 + density + gravel + site || genotype) +
-    (1 | plot_unique),
-  data = phen_flower_kin,
-  family = gaussian(),
-  chains = 3, cores = 1, iter = 2000,
-  # Set seed for reproducibility
-  seed = 4685
-)
-
-# Fit version of the model with out kinship matrix and without current climate to
-# quantify how much variance it explains
-brms_lin_nokin_nocurrent <- brm(
-  jday ~ 0 + Intercept + pc1 + pc2 + (1 | genotype) + (1 | plot_unique),
-  data = phen_flower_kin,
-  data2 = list(Amat = kin),
-  family = gaussian(),
-  chains = 3, cores = 1, iter = 2000,
-  # Set seed for reproducibility
-  seed = 4685
-)
 # Save model objects for use later
 write_rds(brms_lin, "outputs/phenology_kin_final.rds")
 write_rds(brms_lin_nokin, "outputs/phenology_nokin_final.rds")
@@ -129,8 +105,8 @@ pred_obs_plot %>%
   geom_segment(aes(x = pred_lower, xend = pred_upper, y = observed, yend = observed), alpha = 0.2) +
   geom_abline(aes(intercept = 0, slope = 1), linewidth = 2, color = "dodgerblue") +
   ylim(95, 210) + xlim(95, 210) +
-  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 100, y = 210, size = 7) +
-  labs(x = "Predicted day of year", y = "Observed day of year") -> pred_obs
+  annotate("text", label = bquote(R^2 == .(round(r2,3))), x = 102, y = 210, size = 7) +
+  labs(x = "Predicted first day of flowering", y = "Observed first day of flowering") -> pred_obs
 
 ppcs <- ppc_mean + ppc_sd
 
@@ -230,7 +206,8 @@ rbind(pc1_dat, pc2_dat) %>%
        linetype = "Density") +
   scale_color_manual(values = c("#888888", "#DDCC77")) +
   scale_fill_manual(values = c("#888888", "#DDCC77")) +
-  theme(legend.position = "top") -> pc_subplot
+  theme(legend.position = "top",
+        strip.background = element_rect(fill = "white")) -> pc_subplot
 
 png("figs/Fig3_int.png", height = 9.5, width = 7.8, res = 300, units = "in")
 site_subplot + pc_subplot + plot_annotation(tag_levels = "a", tag_prefix = "(",
@@ -238,7 +215,7 @@ site_subplot + pc_subplot + plot_annotation(tag_levels = "a", tag_prefix = "(",
   plot_layout(heights = c(1,2)) 
 dev.off()
 
-# Create Fig S4 - density x gravel interaction across sites
+# Create Fig S5 - density x gravel interaction across sites
 pred_dat_int2 <- sjPlot::plot_model(brms_lin_nokin, terms = c("density", "gravel", "site"), type = "emm")
 tibble(density = pred_dat_int2$data$x,
        gravel = pred_dat_int2$data$group,
@@ -274,11 +251,11 @@ tibble(density = pred_dat_int2$data$x,
   labs(fill = "Density",
        color = "Density",
        x = "Temp. treatment (gravel)",
-       y = "Day of year",
+       y = "First day of flowering",
        shape = "") +
   guides(fill=guide_legend(override.aes=list(shape=21))) -> int_plot2
   
-png("figs/FigS5_int.png", height = 9.5, width = 9.5, res = 300, units = "in") 
+png("figs/FigS5_int.png", height = 7, width = 7, res = 300, units = "in") 
 int_plot2
 dev.off()
 
