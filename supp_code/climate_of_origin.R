@@ -72,7 +72,7 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
        y = "Latitude",
        shape = "Common garden") +
   scale_shape_manual(values = c(2,5,0,6)) +
-  ggtitle("(a) PC 1: cool & wet → hot & dry") -> pc1
+  ggtitle(paste("(a) PC 1: cool & wet", "\U2192", "hot & dry")) -> pc1
 
 # Plot of PC2 by site for genotypes
 ggplot(data=region, aes(x=long, y=lat, group = group)) +
@@ -92,7 +92,7 @@ ggplot(data=region, aes(x=long, y=lat, group = group)) +
        y = "Latitude",
        shape = "Common garden") +
   scale_shape_manual(values = c(2,5,0,6)) +
-  ggtitle("(b) PC 2: low → high seasonality") -> pc2
+  ggtitle(paste("(b) PC 2: low", "\U2192", "high seasonality")) -> pc2
 
 # Plot of common garden sites
 cg_pc %>%
@@ -121,12 +121,10 @@ cg_pc %>%
   geom_text(aes(x = -105.8, y = 1610), label = "PC 1 value", fontface = "italic", color = "gray37") +
   ggtitle("(c) Common garden sites") -> cg_pc_plot
 
-
-png(here("figs/Fig2_ClimateOrigin.png"), height = 6.8, width = 13.3, res = 300, units = "in")
-pc1 + pc2 +cg_pc_plot + plot_layout(guides = "collect", nrow = 1) & theme(legend.direction = "vertical",
+Fig2 <- pc1 + pc2 +cg_pc_plot + plot_layout(guides = "collect", nrow = 1) & theme(legend.direction = "vertical",
                                                                 legend.box = "horizontal", legend.position = "bottom")
 
-dev.off()
+ggsave("figs/Figure2.eps", Fig2, width = 13.3, height = 6.8, units = "in", dpi = 600, device = cairo_ps)
 
 ## Create data frame for analysis ####
 

@@ -212,8 +212,9 @@ rbind(pc1_dat, pc2_dat) %>%
 png("figs/Fig3_int.png", height = 9.5, width = 7.8, res = 300, units = "in")
 site_subplot + pc_subplot + plot_annotation(tag_levels = "a", tag_prefix = "(",
                                             tag_suffix = ")") +
-  plot_layout(heights = c(1,2)) 
-dev.off()
+  plot_layout(heights = c(1,2)) -> Fig3
+ggsave("figs/Figure3.eps", Fig3, width = 7.8, height = 9.5, units = "in", dpi = 600, device = cairo_ps)
+
 
 # Create Fig S5 - density x gravel interaction across sites
 pred_dat_int2 <- sjPlot::plot_model(brms_lin_nokin, terms = c("density", "gravel", "site"), type = "emm")
@@ -351,10 +352,11 @@ preds_by_genotype %>%
        fill = "") +
   ylim(139, 170) -> pc2_genotype_subplot
 
-png("figs/Fig4_sourceclimate.png", height = 5, width = 9, units = "in", res = 300)
 pc1_genotype_subplot + pc2_genotype_subplot +
-  plot_annotation(tag_levels = "a", tag_prefix = "(", tag_suffix = ")") & theme(legend.position = "bottom") 
-dev.off()
+  plot_annotation(tag_levels = "a", tag_prefix = "(", tag_suffix = ")") & theme(legend.position = "bottom") -> Fig4 
+
+ggsave("figs/Figure4.eps", Fig4, width = 9, height = 5, units = "in", dpi = 600, device = cairo_ps)
+
 
 ## Genotype by environment graph ####
 
@@ -567,12 +569,13 @@ design <- c(
 # Visualize plot layout
 # plot(design)
 
-png("figs/Fig5_gxe.png", height = 8.73, width = 12.66, res = 300, units = "in")
 (site_gxe | gravel_gxe / density_gxe) /
   (site_effect + gravel_effect + density_effect) + 
   plot_layout(heights = c(4,1)) +
   plot_annotation(tag_levels = "a",
                   tag_prefix = "(",
-                  tag_suffix = ")") 
-dev.off()
+                  tag_suffix = ")") -> Fig5
+
+ggsave("figs/Figure5.eps", Fig5, width = 12.66, height = 8.73, units = "in", dpi = 600, device = cairo_ps)
+
 

@@ -178,7 +178,6 @@ coef(mod)[2]
 text_x2 <- grid::textGrob("Avg. maximum temperature Jan - Apr 1981-2010 (°C)",
                           gp=gpar(fontsize=14, fontface="bold", col = "#2c7bb6"))
 
-png("figs/Fig6_relative_sensitivies.png", width = 6, height = 5, res = 300, units = "in")
 climate_sens %>% 
   ggplot(aes(x = tmax, y = jday, color = type, fill = type)) +
   geom_segment(aes(x = tmax, xend = tmax, y = lower, yend = upper), color = "black") +
@@ -198,5 +197,7 @@ climate_sens %>%
   annotation_custom(text_x2, xmin=0,xmax=21.5,ymin=103,ymax=103)+
   ylim(118, 175) +
   coord_cartesian(clip = "off") +
-  annotate("text", label = expression(paste(beta[temp:env], " = 4.3 (3.2, 5.4)")), x = 15.2, y = 175, size = 5) 
-dev.off()
+  annotate("text", label = expression(paste(beta[temp:env], " = 4.3 (3.2, 5.4)")), x = 15.2, y = 175, size = 5) -> Fig6
+
+ggsave("figs/Figure6.eps", Fig6, width = 6, height = 5, units = "in", dpi = 600, device = cairo_ps)
+
