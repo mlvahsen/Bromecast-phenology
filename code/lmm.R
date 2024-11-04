@@ -10,6 +10,8 @@ library(RVAideMemoire)
 # Source in compiled data for the model
 source(here("supp_code", "compile_data.R"))
 
+# Remove any plants that resurrected themselves (observed alive then observed
+# dead between two time points)
 phen_flower_kin %>% filter(is.na(resurrection_date)) -> phen_flower_kin
 
 # Center and scale continuous variables

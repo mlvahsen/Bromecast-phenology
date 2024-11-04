@@ -30,7 +30,7 @@ round(pca_out$sdev^2 / sum(pca_out$sdev^2),3) -> perc_explained
 
 # Get which variables are contributing most to each PC axis
 get_pca_var(pca_out)$contrib[,1]
-sort(get_pca_var(pca_out)$contrib[,2], decreasing = T)
+get_pca_var(pca_out)$contrib[,2]
 
 # Bind PC axis data with original data
 cbind(bioclim, pca_out$x) -> bioclim_pc

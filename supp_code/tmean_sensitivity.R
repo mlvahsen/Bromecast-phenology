@@ -79,21 +79,19 @@ tibble(genotype = as.factor(parse_number(colnames(r_intercepts))),
        pred_lower = apply(pred_all, 2, quantile, probs = 0.025),
        variance = apply(pred_all, 2, var)) %>% 
   merge(phen_flower_kin %>% select(genotype, site_code) %>% distinct()) %>% 
-  merge(genotypes_tmean %>% select(site_code, tmean_mean)) -> genotypes_tmean
-
-# Get predicted means for each site gravel combo
-site_preds <- sjPlot::plot_model(brms_lin, type = "emm", terms = c("site"))
+  merge(genotypes_tmean %>% select(site_code, tmean_mean)) %>% 
+  mutate(diff = (pred_upper - pred_lower)^2)-> genotypes_tmean
 
 # Read in tmeans for each site (file created in prism_wrangle.R)
 site_tmean <- read_csv("supp_data/site_tmean.csv")
 
 # Calculate relationship between CI and variance
-ci_mod <- lm(variance ~ diff, data = genotype_tmean %>% mutate(diff = (pred_upper - pred_lower)^2))
+ci_mod <- lm(variance ~ diff, data = genotypes_tmean)
 
 # Get predicted means for each site gravel combo
 site_preds <- sjPlot::plot_model(brms_lin, type = "emm", terms = "site")
 
-# Format and merge with site max temperature data (over the course of the
+# Format and merge with site mean temperature data (over the course of the
 # growing season)
 tibble(site_code = c("SS", "BA", "WI", "CH"),
        pred_mean = site_preds$data$predicted,
@@ -149,5 +147,5 @@ climate_sens %>%
   annotation_custom(text_x2, xmin=0,xmax=16,ymin=80,ymax=80)+
   coord_cartesian(clip = "off") +
   scale_x_continuous(breaks = seq(3,12,by=3))+
-  annotate("text", label = expression(paste(beta[temp:env], " = 5.8 (3.0, 8.7)")), x = 11, y = 205, size = 5) 
+  annotate("text", label = expression(paste(beta[temp:env], " = 5.8 (2.9, 8.7)")), x = 11, y = 205, size = 5) 
 dev.off()

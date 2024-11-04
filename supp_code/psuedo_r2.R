@@ -1,3 +1,8 @@
+# This code calculates conditional pseudo-R2 values for linear mixed model
+# without kinship matrix. We calculate R2 two ways: (1) for main effects, and
+# (2) for variable types (main effects + any interactions containing that main
+# effect)
+
 # Load libraries
 library(tidyverse); library(readr); library(brms); library(abind);
 
@@ -54,30 +59,6 @@ for(j in 1:p){
 }
 
 ###
-### One variable at a time 
-###
-
-# Table for output 
-pseudo_R2 <- 
-  tibble(
-    Variable = col_names,
-    R2 = NA,
-    R2_sd = NA,
-  )
-
-
-for(j in 1:length(col_names)){
-  
-  X_tmp <- as.matrix(X[,j])
-  # What are the total sum of squares for a model that includes all fixed and random effects except for those in X_tmp 
-  TSS <- apply(Y_mat - Y_pred - X_tmp%*%t(samples_mat[,j]), 2, var)*(n-1)
-  R <- 1 - RSS/TSS
-  pseudo_R2$R2[j] <- mean(R)
-  pseudo_R2$R2_sd[j] <- sd(R)
-  
-}
-
-###
 ### One variable MAIN effect at a time 
 ###
 
@@ -88,7 +69,6 @@ pseudo_R2_MAIN <-
     R2 = NA,
     R2_sd = NA,
   )
-
 
 for(j in 1:p){
   
